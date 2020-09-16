@@ -54,6 +54,34 @@ class Cell:
       self.candidates=0x1FF
       self.__digit=digit
 
+  def has(self,*digits,AND=True):
+    """
+    指定した数字を候補に持つかを真偽値で返す。
+    
+    Parameters
+    ----------
+    *digits : *int
+    AND : bool
+      Falseを指定するとOR判定になる
+    """
+    if digits[0]==0:return False
+    if AND:
+      flg=[]
+      candidates=self.candidates
+      for digit in (i-1 for i in digits):
+        if candidates>>digit&1:
+          flg+=True,
+        else:
+          flg+=False,
+      return all(flg)
+    else:  
+      flg=False
+      candidates=self.candidates
+      for digit in (i-1 for i in digits):
+        if candidates>>digit&1:
+          flg=True
+      return flg
+
   def add(self,*digits):
     """候補数字を追加する"""
     for digit in digits:
@@ -131,12 +159,12 @@ class Grid:
     return [i for i in self.houses[house_index] \
       if self.cells[i].candidates&candidates]
 
-  def low_hanging_fruit(self):
-    for c in self.cells:
-      self.rows[c.row]
-      if c.digit!=0:
-        pass
-    return 1
+  # def low_hanging_fruit(self):
+  #   for c in self.cells:
+  #     self.rows[c.row]
+  #     if c.digit!=0:
+  #       pass
+  #   return 1
 
   def single_candidate(self,index,digit):
     """対象セルが対象数字を唯一の候補として持つかを真偽値でリターン"""
@@ -223,21 +251,35 @@ class Grid:
     print(f'Naked single -> filled {count} cells.')
     return count
 
+  def hidden_single(self):
+    """
+    Hidden Single法
+    同一ハウス内で当該の候補数字を持つセルが1つのみであれば確定
+    """
+    # 空白セルが減らなくなるまで繰り返す
+    # while True:
+      # blank_before=self.count_blank
+    
+    for digit in range(1):#,10):
+      for house in self.houses:
+        # res=[]
+        for i in house:
+          # res+=i,
+          if self.cells[i].candidates:
+            pass
+        # print(','.join(map(str,res)))
+      #   c=self.cells[i]
+      #   if c.digit==0:
+      #     # Hidden Single
+      #     self.erase_peers_candidates(i,c.digit)
+      # if self.count_blank==blank_before:break
+  
   @property
   def can_solve(self):
     """盤面が仮定法なしで解けるかを返す"""
     # CRBE法
     # 後述の下位互換のため一旦パス
 
-    # 空白セルが減らなくなるまで繰り返す
-    while True:
-      blank_before=self.count_blank
-      for i in range(81):
-        c=self.cells[i]
-        if c.digit==0:
-          # Hidden Single
-          self.erase_peers_candidates(i,c.digit)
-      if self.count_blank==blank_before:break
     
 
   def erase_peers_candidates(self,cell_index,digit):
