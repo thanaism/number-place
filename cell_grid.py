@@ -1,106 +1,13 @@
 from datetime import datetime
 from tkinter import*
-# from networkx import*
 import random
 import openpyxl
 from openpyxl.styles import PatternFill, Border, Side, Alignment, Protection, Font
 import glob
 import os
-# from logging import getLogger
-# logger = getLogger(__name__)
 
 class LogicError(Exception):
   pass
-
-class Cell:
-  """
-  """
-  def __init__(self,index,digit):
-    """
-    セルの初期化
-    """
-    self.index=index
-    self.row=index//9
-    self.column=index%9
-    self.box=index//27*3+index%9//3
-    self.__digit=digit
-    if digit ==0:
-      self.candidates=0x1FF
-    else:
-      self.candidates=0
-  
-  @property
-  def count(self):
-    """候補数字の個数を返す"""
-    return bin(self.candidates).count('1')
-  
-  @property
-  def digit(self):
-    """確定数字を返す。空白マスは0を返す。"""
-    return self.__digit
-  
-  # @property
-  # def naked_single(self):
-  #   """当初の作成意図不明：要メンテ"""
-  #   return len(bin(self.candidates&-self.candidates))-2 if self.candidates!=0 else 0
-  
-  @digit.setter
-  def digit(self,digit):
-    """確定数字をセットする。0をセットすると候補数字がすべてONする。"""
-    if digit!=0:
-      self.candidates=0
-      self.__digit=digit
-    else:
-      self.candidates=0x1FF
-      self.__digit=digit
-
-  def has(self,*digits,AND=True):
-    """
-    指定した数字を候補に持つかを真偽値で返す。
-    
-    Parameters
-    ----------
-    *digits : *int
-    AND : bool
-      Falseを指定するとOR判定になる
-    """
-    if digits[0]==0:return False
-    if AND:
-      flg=[]
-      candidates=self.candidates
-      for digit in (i-1 for i in digits):
-        if candidates>>digit&1:
-          flg+=True,
-        else:
-          flg+=False,
-      return all(flg)
-    else:  
-      flg=False
-      candidates=self.candidates
-      for digit in (i-1 for i in digits):
-        if candidates>>digit&1:
-          flg=True
-      return flg
-
-  def add(self,*digits):
-    """候補数字を追加する"""
-    for digit in digits:
-      self.candidates|=1<<digit-1
-
-  def remove(self,*digits):
-    """候補数字を削除する、候補数字が空になると例外を吐く（数字確定にはdigitを使用する）"""
-    for digit in digits:
-      try:
-        self.candidates&=~(1<<digit-1)
-      except ValueError as e:
-        print(e)
-        print(f'エラーが発生しています。消去数字：{digit}')
-    if self.candidates==0:
-      raise LogicError(f'romoveメソッドにより{self.index}番目のセルで候補数字が空になりました。')
-
-  def show(self):
-    """候補数字をコンソールにビットで列挙する"""
-    print(f'{self.candidates:b}')
 
 class Grid:
   """
@@ -325,10 +232,12 @@ class Grid:
   def rand9():
     """1-9のランダム順列をリターン"""
     return random.sample([*range(1,10)],9)
+
   @staticmethod
   def rand81():
     """1-81のランダム順列をリターン"""
     return random.sample([*range(81)],81)
+    
   @staticmethod
   def rotate(grid):
     """
@@ -346,28 +255,23 @@ class Grid:
     l=lambda i:[i//9,i%9,8-i//9,8-i%9]
     return [[int(grid[l(i)[j]*9+l(i)[k]]) for i in range(81)] for j in range(4) for k in range(4) if j!=k and (j&1)^(k&1)]
 
-  # rotate90=[(8-i%9)*9+(8-i//9) for i in range(81)]
+  @staticmethod
+  def show(*digits):
+    """1-9の入力整数タプルに対して、立っているビット位置をコンソールに表示（候補数字フラグ確認用）"""
+    print(f'{0x1FF&sum([1<<(i-1) for i in digits]):b}')
 
-def show(*digits):
-  """1-9の入力整数タプルに対して、立っているビット位置をコンソールに表示（候補数字フラグ確認用）"""
-  print(f'{0x1FF&sum([2**(i-1) for i in digits]):b}')
-
-s=lambda *d:511&sum([1<<~-i for i in d])
-
-
-def show_index():
-  """インデックスの位置関係をコンソールに表示"""
-  print('+----------+----------+----------+')
-  for i in range(81):
-    if i%9==8:
-      print(f'{i:>2d} |')
-      if all([i//9%3==2,i//9!=8]):
-        print('|----------+----------+----------|')
-    # elif i%9==3 or i%9==6:
-    #   print(f'| {i:>2d} ',end='')
-    elif i%9%3==0:
-      print(f'| {i:>2d} ',end='')  
-    else:
-      print(f'{i:>2d} ',end='')
-  print('+----------+----------+----------+')
+  @staticmethod
+  def show_index():
+    """インデックスの位置関係をコンソールに表示"""
+    print('+----------+----------+----------+')
+    for i in range(81):
+      if i%9==8:
+        print(f'{i:>2d} |')
+        if all([i//9%3==2,i//9!=8]):
+          print('|----------+----------+----------|')
+      elif i%9%3==0:
+        print(f'| {i:>2d} ',end='')  
+      else:
+        print(f'{i:>2d} ',end='')
+    print('+----------+----------+----------+')
 
