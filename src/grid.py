@@ -238,6 +238,62 @@ class Grid:
                                 self.cells[j].remove(digit)
                                 print(f'remove {digit} in house {j}')
 
+    def ls_hidden(self, dim):
+        """
+        Locked set (hidden)法
+
+        Patameters
+        ----------
+        dim : int
+            次数(Pair, triple, quadruple ...)
+
+        Notes
+        -----
+        ハウス内の空白マス数：ucell_count
+        includes：選択セル
+        excludes：非選択セル
+        選択セルの個数＝次数
+        選択セルの候補数字数＝不定
+        一方で、
+        非選択セルの候補数字数＝空白数-次数
+        非選択セルの個数＝ハウス内の候補数字数-次数
+        よって、len(ex_candidates)==len(excludes)が条件
+        """
+        for i_house, v_house in enumerate(self.houses):
+            cells_unfilled = self.unfilled_in_house(i_house)
+            ucell_count = len(cells_unfilled)
+            if ucell_count <= dim:
+                continue
+            for cmb in itertools.combinations(cells_unfilled, dim):
+                includes = set(cmb)
+                excludes = set(v_house)-includes
+                in_candidates = ex_candidates = 0
+                for i in includes:
+                    in_candidates |= self.cells[i].candidates
+                for i in excludes:
+                    ex_candidates |= self.cells[i].candidates
+                ex_bitcount = bin(ex_candidates).count('1')
+                if ex_bitcount == len(excludes) == ucell_count-dim:
+                    for i in includes:
+                        bit = self.cells[i].candidates & ex_candidates
+                        rm = []
+                        for j in range(9):
+                            if bin(bit)[::-1][j] == '1':
+                                rm += j+1,
+                        # print(f'includes: {includes}, excludes: {excludes}')
+                        print(f'house: {i_house}, index: {i}, remove: {rm}')
+                        self.cells[i].remove(*rm)
+
+    def ls_naked(self, dim):
+        """
+        Locked set (naked)法
+
+        Patameters
+        ----------
+        dim : int
+            次数。Pair, triple, quadruple ...
+        """
+
     @ staticmethod
     def peer_boxes_in_chute(box_index):
         """
