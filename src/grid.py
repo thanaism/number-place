@@ -68,24 +68,15 @@ class Grid:
         self.difficulty = difficulty
         self.type = np_type  # 0:normal,1:diagonal,2:sum
         self.cells = [Cell(i, 0) for i in range(81)]
-        # self.__unfilled=[1]*81
 
     def unfilled_in_house(self, house_index, candidates=0x1FF):
         """指定したハウス内の指定した候補を持つマスのインデックス配列を返す"""
         return [i for i in self.houses[house_index]
                 if self.cells[i].candidates & candidates]
 
-    # def low_hanging_fruit(self):
-    #   for c in self.cells:
-    #     self.rows[c.row]
-    #     if c.digit!=0:
-    #       pass
-    #   return 1
-
     def single_candidate(self, index, digit):
         """対象セルが対象数字を唯一の候補として持つかを真偽値でリターン"""
         return self.cells[index].candidates | 1 << digit - 1 == 1 << digit - 1
-    # def create_diagonal(self):
 
     def create(self):
         """問題を生成する"""
@@ -160,8 +151,7 @@ class Grid:
                     self.erase_peers_candidates(i, c.digit)
             for i in range(81):
                 c = self.cells[i]
-                # Naked Single
-                if c.count == 1:
+                if c.count == 1:  # Naked Single
                     c.digit = bin(c.candidates)[::-1].find('1') + 1
                     count += 1
                     self.erase_peers_candidates(i, c.digit)
@@ -191,8 +181,7 @@ class Grid:
     @property
     def can_solve(self):
         """盤面が仮定法なしで解けるかを返す"""
-        # CRBE法
-        # 後述の下位互換のため一旦パス
+        # CRBE法：後述の下位互換のため一旦パス
 
     def erase_peers_candidates(self, cell_index, digit):
         """指定マスと同一ハウスにあるマスから指定の候補数字を消去する"""
