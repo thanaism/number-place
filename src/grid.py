@@ -209,6 +209,34 @@ class Grid:
         同一行（列）内で単一のボックスのみに候補数字が存在する場合に、
         同一ボックスで行（列）外にある候補を削除可能
         """
+        for digit in range(1, 10):
+            row_digits_on = [0]*9
+            col_digits_on = [0]*9
+            for i in range(81):
+                if self.cells[i].has(digit):
+                    row = self.cells[i].row
+                    column = self.cells[i].column
+                    box = self.cells[i].box
+                    row_digits_on[box] |= (1 << row)
+                    col_digits_on[box] |= (1 << (column+9))
+            for b in range(9):
+                for rc in (row_digits_on[b], col_digits_on[b]):
+                    (br1, br2), (bc1, bc2) = self.peer_boxes_in_chute(b)
+
+    @staticmethod
+    def peer_boxes_in_chute(box_index):
+        """
+        Returns
+        -------
+        (br1, br2, bc1, bc2) : tuple(int)
+        同一floorのboxインデックス、同一towerのboxインデックス
+        """
+        b = box_index
+        br1 = b//3*3+(b+1) % 3
+        br2 = b//3*3+(b+2) % 3
+        bc1 = (b+3) % 9
+        bc2 = (b+6) % 9
+        return (br1, br2, bc1, bc2)
 
     def copy_grid(self):
         copied_grid = copy.deepcopy(self)
