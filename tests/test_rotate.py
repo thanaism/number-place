@@ -1,9 +1,13 @@
+import os
+import sys
 import pytest
-from grid import Grid
+sys.path.insert(0, os.path.abspath(
+    os.path.join(os.path.dirname(__file__), '..')))
 
 
 @pytest.fixture
 def grid_creation():
+    from src.grid import Grid
     grid = Grid()
     grid.create()
     yield grid
