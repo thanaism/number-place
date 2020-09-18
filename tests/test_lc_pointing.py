@@ -9,23 +9,33 @@ sys.path.insert(0, os.path.abspath(
 def grid_creation():
     from src.grid import Grid
     grid = Grid()
-    for i in range(9, 18):
-        grid.cells[i].remove(9)
-    grid.cells[12].add(9)
-    for i in range(9, 18):
-        if i != 12:
-            assert grid.cells[i].candidates == 0b011111111
-        else:
-            assert grid.cells[i].candidates == 0b111111111
+    for i in grid.boxes[3]:
+        grid.cells[i].remove(7)
+    grid.cells[37].add(7)
+    grid.cells[38].add(7)
     yield grid
-    print()
-    grid.show_grid()
 
 
-def test_hidden_single(grid_creation):
+def test_lc_pointing(grid_creation):
     grid = grid_creation
-    grid.hidden_single()
-    assert grid.cells[12].digit == 9
+    count = 0
+    for i in grid.boxes[3]:
+        if grid.cells[i].has(7):
+            count += 1
+    assert count == 2
+    grid.lc_pointing()
+    for i in range(39, 44):
+        assert grid.cells[i].has(7) is False
+    l = []
+    for b in range(9):
+        for i in grid.boxes[b]:
+            if b != 3 and grid.cells[i].row != 4:
+                candidates = grid.cells[i].candidates
+                assert grid.cells[i].has(7) is True
+                if candidates != 511:
+                    l.append((i, candidates))
+    print(l)
+    grid.show_index()
 
 
 if __name__ == '__main__':

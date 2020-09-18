@@ -28,7 +28,7 @@ class Grid:
     peers_column : list(int)
       指定インデックスに対して同一列に含まれるインデックスの配列
     peers_box : list(int)
-      指定インデックスに対して同一ブロックに含まれるインデックスの配列
+      指定インデックスに対して同一ボックスに含まれるインデックスの配列
     peers : list(int)
       指定インデックスに対して同一行・列・ボックスに含まれるインデックスの配列
     """
@@ -179,11 +179,70 @@ class Grid:
             if self.count_blank == blank_before:
                 break
 
+    def lc_pointing(self):
+        """
+        Locked candidates(Pointing)法
+        同一ボックス内で単一の行（列）のみに候補数字が存在する場合に、
+        同一行（列）でボックス外にある候補を削除可能
+        """
+        for digit in range(1, 10):
+            row_digits_on = [0]*9
+            col_digits_on = [0]*9
+            for i in range(81):
+                if self.cells[i].has(digit):
+                    row = self.cells[i].row
+                    column = self.cells[i].column
+                    box = self.cells[i].box
+                    row_digits_on[box] |= (1 << row)
+                    col_digits_on[box] |= (1 << (column+9))
+            for b in range(9):
+                for rc in (row_digits_on[b], col_digits_on[b]):
+                    if bin(rc).count('1') == 1:
+                        house = bin(rc)[::-1].find('1')
+                        for i in self.unfilled_in_house(house, 1 << (digit-1)):
+                            if self.cells[i].box != b:
+                                self.cells[i].remove(digit)
+
+    def lc_claiming(self):
+        """
+        Locked candidates(Claiming)法
+        同一行（列）内で単一のボックスのみに候補数字が存在する場合に、
+        同一ボックスで行（列）外にある候補を削除可能
+        """
+        for digit in range(1, 10):
+            row_digits_on = [0]*9
+            col_digits_on = [0]*9
+            for i in range(81):
+                if self.cells[i].has(digit):
+                    row = self.cells[i].row
+                    column = self.cells[i].column
+                    box = self.cells[i].box
+                    row_digits_on[box] |= (1 << row)
+                    col_digits_on[box] |= (1 << (column+9))
+            for b in range(9):
+                for rc in (row_digits_on[b], col_digits_on[b]):
+                    (br1, br2), (bc1, bc2) = self.peer_boxes_in_chute(b)
+
+    @staticmethod
+    def peer_boxes_in_chute(box_index):
+        """
+        Returns
+        -------
+        (br1, br2, bc1, bc2) : tuple(int)
+        同一floorのboxインデックス、同一towerのboxインデックス
+        """
+        b = box_index
+        br1 = b//3*3+(b+1) % 3
+        br2 = b//3*3+(b+2) % 3
+        bc1 = (b+3) % 9
+        bc2 = (b+6) % 9
+        return (br1, br2, bc1, bc2)
+
     def copy_grid(self):
         copied_grid = copy.deepcopy(self)
         return copied_grid
 
-    @property
+    @ property
     def can_solve(self):
         """盤面が仮定法なしで解けるかを返す"""
         # CRBE法：後述の下位互換のため一旦パス
@@ -194,12 +253,12 @@ class Grid:
             if (c := self.cells[i]).candidates != 0 and i != cell_index:
                 c.remove(digit)
 
-    @property
+    @ property
     def sequence(self):
         """全マスの数字を連結した文字列でリターン"""
         return ''.join([str(self.cells[i].digit) for i in range(81)])
 
-    @property
+    @ property
     def grid(self):
         """盤面をlist[int]で返す"""
         return [self.cells[i].digit for i in range(81)]
