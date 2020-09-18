@@ -388,13 +388,13 @@ class Grid:
         for i in range(81):
             if i not in indexes:
                 if i % 9 == 8:
-                    print(f'** |')
+                    print('** |')
                     if all([i // 9 % 3 == 2, i // 9 != 8]):
                         print('|----------+----------+----------|')
                 elif i % 9 % 3 == 0:
-                    print(f'| ** ', end='')
+                    print('| ** ', end='')
                 else:
-                    print(f'** ', end='')
+                    print('** ', end='')
             else:
                 if i % 9 == 8:
                     print(f'{i:>2d} |')
