@@ -2,6 +2,7 @@ from .cell import Cell
 from datetime import datetime
 import random
 import itertools
+import copy
 
 
 class LogicError(Exception):
@@ -177,6 +178,10 @@ class Grid:
                         self.erase_peers_candidates(hidden_single, digit)
             if self.count_blank == blank_before:
                 break
+
+    def copy_grid(self):
+        copied_grid = copy.deepcopy(self)
+        return copied_grid
 
     @property
     def can_solve(self):
