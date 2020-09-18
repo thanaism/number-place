@@ -272,13 +272,14 @@ class Grid:
                     in_candidates |= self.cells[i].candidates
                 for i in excludes:
                     ex_candidates |= self.cells[i].candidates
+                in_bitcount = bin(in_candidates).count('1')
                 ex_bitcount = bin(ex_candidates).count('1')
                 if ex_bitcount == len(excludes) == ucell_count-dim:
                     for i in includes:
                         bit = self.cells[i].candidates & ex_candidates
                         rm = []
                         for j in range(9):
-                            if bin(bit)[::-1][j] == '1':
+                            if f'{bit:09b}'[::-1][j] == '1':
                                 rm += j+1,
                         # print(f'includes: {includes}, excludes: {excludes}')
                         print(f'house: {i_house}, index: {i}, remove: {rm}')
@@ -291,8 +292,37 @@ class Grid:
         Patameters
         ----------
         dim : int
-            次数。Pair, triple, quadruple ...
+            次数(Pair, triple, quadruple ...)
+
+        Notes
+        -----
+        次数＝選択セルの候補数字数＝不定
         """
+        for i_house, v_house in enumerate(self.houses):
+            cells_unfilled = self.unfilled_in_house(i_house)
+            ucell_count = len(cells_unfilled)
+            if ucell_count <= dim:
+                continue
+            for cmb in itertools.combinations(cells_unfilled, dim):
+                includes = set(cmb)
+                excludes = set(v_house)-includes
+                in_candidates = ex_candidates = 0
+                for i in includes:
+                    in_candidates |= self.cells[i].candidates
+                for i in excludes:
+                    ex_candidates |= self.cells[i].candidates
+                in_bitcount = bin(in_candidates).count('1')
+                ex_bitcount = bin(ex_candidates).count('1')
+                if in_bitcount == dim:
+                    for i in excludes:
+                        bit = in_candidates
+                        rm = []
+                        for j in range(9):
+                            if f'{bit:09b}'[::-1][j] == '1':
+                                rm += j+1,
+                        # print(f'includes: {includes}, excludes: {excludes}')
+                        print(f'house: {i_house}, index: {i}, remove: {rm}')
+                        self.cells[i].remove(*rm)
 
     @ staticmethod
     def peer_boxes_in_chute(box_index):
