@@ -12,9 +12,14 @@ def grid_creation():
     yield grid
 
 
-def test_peer_boxes_in_chute(grid_creation):
+@pytest.mark.parametrize('digit,expected', [
+    (0, (1, 2, 3, 6)),
+    (5, (3, 4, 8, 2)),
+    (7, (8, 6, 1, 4))
+])
+def test_peer_boxes_in_chute(digit, expected, grid_creation):
     grid = grid_creation
-    assert grid.peer_boxes_in_chute(0) == (1, 2, 3, 6)
+    assert grid.peer_boxes_in_chute(digit) == expected
 
 
 if __name__ == '__main__':
