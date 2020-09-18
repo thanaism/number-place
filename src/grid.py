@@ -1,4 +1,4 @@
-from cell import Cell
+from .cell import Cell
 from datetime import datetime
 import random
 import itertools
@@ -176,22 +176,17 @@ class Grid:
         同一ハウス内で当該の候補数字を持つセルが1つのみであれば確定
         """
         # 空白セルが減らなくなるまで繰り返す
-        # while True:
-        # blank_before=self.count_blank
-
-        for digit in range(1):  # ,10):
-            for house in self.houses:
-                # res=[]
-                for i in house:
-                    # res+=i,
-                    if self.cells[i].candidates:
-                        pass
-                # print(','.join(map(str,res)))
-            #   c=self.cells[i]
-            #   if c.digit==0:
-            #     # Hidden Single
-            #     self.erase_peers_candidates(i,c.digit)
-            # if self.count_blank==blank_before:break
+        while True:
+            blank_before = self.count_blank
+            for digit in range(1, 10):
+                for i, house in enumerate(self.houses):
+                    cells_unfilled = self.unfilled_in_house(i, 1 << (digit-1))
+                    if len(cells_unfilled) == 1:
+                        hidden_single = cells_unfilled[0]
+                        self.cells[hidden_single].digit = digit
+                        self.erase_peers_candidates(hidden_single, digit)
+            if self.count_blank == blank_before:
+                break
 
     @property
     def can_solve(self):
