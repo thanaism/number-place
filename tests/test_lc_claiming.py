@@ -9,23 +9,26 @@ sys.path.insert(0, os.path.abspath(
 def grid_creation():
     from src.grid import Grid
     grid = Grid()
-    for i in range(9, 18):
-        grid.cells[i].remove(9)
-    grid.cells[12].add(9)
-    for i in range(9, 18):
-        if i != 12:
-            assert grid.cells[i].candidates == 0b011111111
-        else:
-            assert grid.cells[i].candidates == 0b111111111
     yield grid
-    print()
-    grid.show_grid()
 
 
-def test_hidden_single(grid_creation):
+@pytest.mark.parametrize('rm, chute, targets, digits', [
+    (5, 0, [9, 10, 11, 19], [1, 2, 9, 10, 11, 19, 12, 13, 21, 15, 17, 25]),
+    (5, 4, [3, 5, 21], [3, 21, 13, 22, 5, 30, 32, 57, 59]),
+    (5, 2, [60], [60, 78, 54, 55, 66, 68]),
+    (5, 1, [30, 32, 49], [30, 32, 40, 49, 33, 34, 45, 47])
+])
+def test_lc_claiming(rm, chute, targets, digits, grid_creation):
     grid = grid_creation
-    grid.hidden_single()
-    assert grid.cells[12].digit == 9
+    for i in grid.chutes[chute]:
+        grid.cells[i].remove(rm)
+    for i in digits:
+        grid.cells[i].add(rm)
+    print('\n')
+    grid.lc_claiming()
+    grid.show_only_input_index(*digits)
+    for i in targets:
+        assert grid.cells[i].has(rm) is False
 
 
 if __name__ == '__main__':
