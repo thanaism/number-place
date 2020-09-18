@@ -186,17 +186,17 @@ class Grid:
         同一行（列）でボックス外にある候補を削除可能
         """
         for digit in range(1, 10):
-            row_digits_on = [0]*9
-            col_digits_on = [0]*9
+            row_occupied = [0]*9
+            col_occupied = [0]*9
             for i in range(81):
                 if self.cells[i].has(digit):
                     row = self.cells[i].row
                     column = self.cells[i].column
                     box = self.cells[i].box
-                    row_digits_on[box] |= (1 << row)
-                    col_digits_on[box] |= (1 << (column+9))
+                    row_occupied[box] |= (1 << row)
+                    col_occupied[box] |= (1 << (column+9))
             for b in range(9):
-                for rc in (row_digits_on[b], col_digits_on[b]):
+                for rc in (row_occupied[b], col_occupied[b]):
                     if bin(rc).count('1') == 1:
                         house = bin(rc)[::-1].find('1')
                         for i in self.unfilled_in_house(house, 1 << (digit-1)):
@@ -210,20 +210,35 @@ class Grid:
         同一ボックスで行（列）外にある候補を削除可能
         """
         for digit in range(1, 10):
-            row_digits_on = [0]*9
-            col_digits_on = [0]*9
-            for i in range(81):
-                if self.cells[i].has(digit):
-                    row = self.cells[i].row
-                    column = self.cells[i].column
-                    box = self.cells[i].box
-                    row_digits_on[box] |= (1 << row)
-                    col_digits_on[box] |= (1 << (column+9))
+            row_occupied = [0]*9
+            col_occupied = [0]*9
+            for cell in self.cells:
+                if cell.has(digit):
+                    row_occupied[cell.box] |= (1 << cell.row)
+                    col_occupied[cell.box] |= (1 << cell.column)
             for b in range(9):
-                for rc in (row_digits_on[b], col_digits_on[b]):
-                    (br1, br2), (bc1, bc2) = self.peer_boxes_in_chute(b)
+                peer_boxes = self.peer_boxes_in_chute(b)
+                for i, v in enumerate([row_occupied, col_occupied]):
+                    b1, b2 = peer_boxes[0+i*2], peer_boxes[1+i*2]
+                    if bin(v[b]).count('1') <= 1:
+                        continue
+                    if (bit_b1 := v[b1] & 0x1FF) <= 0:
+                        continue
+                    if (bit_b2 := v[b2] & 0x1FF) <= 0:
+                        continue
+                    b12 = bit_b1 | bit_b2
+                    non_common = bin(v[b] & (b12 ^ 0x1FF))[::-1].find('1')
+                    if bin(b12).count('1') == 2 and non_common >= 0:
+                        for j in self.unfilled_in_house(18+b, 1 << (digit-1)):
+                            found_cell = self.cells[j]
+                            if found_cell.row != non_common and i == 0:
+                                self.cells[j].remove(digit)
+                                print(f'remove {digit} in house {j}')
+                            if found_cell.column != non_common and i == 1:
+                                self.cells[j].remove(digit)
+                                print(f'remove {digit} in house {j}')
 
-    @staticmethod
+    @ staticmethod
     def peer_boxes_in_chute(box_index):
         """
         Returns
@@ -364,4 +379,29 @@ class Grid:
                 print(f'| {i:>2d} ', end='')
             else:
                 print(f'{i:>2d} ', end='')
+        print('+----------+----------+----------+')
+
+    @ staticmethod
+    def show_only_input_index(*indexes):
+        """インデックスの位置関係をコンソールに表示"""
+        print('+----------+----------+----------+')
+        for i in range(81):
+            if i not in indexes:
+                if i % 9 == 8:
+                    print(f'** |')
+                    if all([i // 9 % 3 == 2, i // 9 != 8]):
+                        print('|----------+----------+----------|')
+                elif i % 9 % 3 == 0:
+                    print(f'| ** ', end='')
+                else:
+                    print(f'** ', end='')
+            else:
+                if i % 9 == 8:
+                    print(f'{i:>2d} |')
+                    if all([i // 9 % 3 == 2, i // 9 != 8]):
+                        print('|----------+----------+----------|')
+                elif i % 9 % 3 == 0:
+                    print(f'| {i:>2d} ', end='')
+                else:
+                    print(f'{i:>2d} ', end='')
         print('+----------+----------+----------+')
