@@ -375,8 +375,6 @@ class Grid:
                                     f'X-Wing: {bs_indexes}, {cs_indexes}')
                                 print(f'remove: {removables}')
                             for i in removables:
-                                # if self.cells[i].has(digit):
-                                #     print(f'digit {digit} is removed from {i}')
                                 self.cells[i].remove(digit)
                             # remain = [i for i in range(
                             #     81) if self.cells[i].has(digit)]
