@@ -272,7 +272,7 @@ class Grid:
                     in_candidates |= self.cells[i].candidates
                 for i in excludes:
                     ex_candidates |= self.cells[i].candidates
-                in_bitcount = bin(in_candidates).count('1')
+                # in_bitcount = bin(in_candidates).count('1')
                 ex_bitcount = bin(ex_candidates).count('1')
                 if ex_bitcount == len(excludes) == ucell_count-dim:
                     for i in includes:
@@ -312,7 +312,7 @@ class Grid:
                 for i in excludes:
                     ex_candidates |= self.cells[i].candidates
                 in_bitcount = bin(in_candidates).count('1')
-                ex_bitcount = bin(ex_candidates).count('1')
+                # ex_bitcount = bin(ex_candidates).count('1')
                 if in_bitcount == dim:
                     for i in excludes:
                         bit = in_candidates
@@ -323,6 +323,64 @@ class Grid:
                         # print(f'includes: {includes}, excludes: {excludes}')
                         print(f'house: {i_house}, index: {i}, remove: {rm}')
                         self.cells[i].remove(*rm)
+
+    def x_wing(self):
+        """
+        X-Wingメソッド
+        Fishで一般化可能；
+        N個以下の対象数字を含むBase set
+        それをカバーするCover setの概念を使用する
+        今回はX-Wingケースのみに絞ってビットを使用せず書く
+        """
+        cmb = itertools.combinations
+        fish_size = 2
+        for digit in range(1, 10):
+            bit = 1 << (digit-1)
+            # print(f'digit: {digit} starts...')
+            # Row -> Col, Col -> Row
+            for rowcol in [(0, 9), (9, 0)]:
+                base_sets = []
+                for rc in range(9):
+                    unfilleds = self.unfilled_in_house(rc+rowcol[0], bit)
+                    if len(unfilleds) == fish_size:
+                        # print(
+                        #     f'base house: {rc+rowcol[0]}')
+                        base_sets += unfilleds,
+                        # print(f'base sets: {base_sets}')
+                for base_set in cmb(base_sets, fish_size):
+                    # print(f'base set found: {base_set[0],base_set[1]}')
+                    bs_indexes = set()
+                    for i in base_set:
+                        bs_indexes.update({*i})
+                    # bs_indexesにbase_setのindexが含まれている状態
+                    cover_sets = []
+                    for rc in range(9):
+                        unfilleds = self.unfilled_in_house(rc+rowcol[1], bit)
+                        if len(unfilleds) >= 2:
+                            # print(
+                            #     f'cover house: {rc+rowcol[1]}')
+                            cover_sets += unfilleds,
+                            # print(f'cover sets: {cover_sets}')
+                    for cover_set in cmb(cover_sets, fish_size):
+                        # print(
+                        #     f'cover set found: {cover_set[0],cover_set[1]}')
+                        cs_indexes = set()
+                        for i in cover_set:
+                            cs_indexes.update({*i})
+                        # cs_indexesにcover_setのindexが含まれている状態
+                        if bs_indexes.issubset(cs_indexes):
+                            removables = cs_indexes-bs_indexes
+                            if len(removables) > 0:
+                                print(
+                                    f'X-Wing: {bs_indexes}, {cs_indexes}')
+                                print(f'remove: {removables}')
+                            for i in removables:
+                                # if self.cells[i].has(digit):
+                                #     print(f'digit {digit} is removed from {i}')
+                                self.cells[i].remove(digit)
+                            # remain = [i for i in range(
+                            #     81) if self.cells[i].has(digit)]
+                            # self.show_only_input_index(*remain)
 
     @ staticmethod
     def peer_boxes_in_chute(box_index):
