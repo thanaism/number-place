@@ -82,7 +82,7 @@ class Grid:
     def create(self):
         """問題を生成する"""
         self.__givens = 20
-        r81 = Grid.rand81()
+        r81 = self.rand81()
 
         def create_ans(index):
             """解答の盤面を生成する再帰関数"""
@@ -90,7 +90,7 @@ class Grid:
                 if self.cells[i].digit == 0:
                     index = i
                     break
-            for j in Grid.rand9():
+            for j in self.rand9():
                 if self.can_place(index, j):
                     self.cells[index].digit = j
                     if index + 1 == 81:
@@ -120,7 +120,7 @@ class Grid:
         未確定のセルが1つのハウスを確定
         """
         count = 0
-        for house in Grid.houses:
+        for house in self.houses:
             unfilled = 0
             idx = None
             remain = {1, 2, 3, 4, 5, 6, 7, 8, 9}
@@ -132,9 +132,10 @@ class Grid:
                 else:
                     remain -= {d}
             if unfilled == 1:
-                self.cells[idx].digit = remain.pop()
+                target = remain.pop()
+                print(f'Last digit -> {target} to {idx}')
+                self.cells[idx].digit = target
                 count += 1
-        print(f'Last digit -> filled {count} cells.')
         return count
 
     def naked_single(self):
@@ -374,11 +375,13 @@ class Grid:
                                 print(
                                     f'X-Wing: {bs_indexes}, {cs_indexes}')
                                 print(f'remove: {removables}')
-                            for i in removables:
-                                self.cells[i].remove(digit)
-                            # remain = [i for i in range(
-                            #     81) if self.cells[i].has(digit)]
-                            # self.show_only_input_index(*remain)
+                                for i in removables:
+                                    self.cells[i].remove(digit)
+                                # remain = [i for i in range(
+                                #     81) if self.cells[i].has(digit)]
+                                # self.show_only_input_index(*remain)
+                                return True
+        return False
 
     @ staticmethod
     def peer_boxes_in_chute(box_index):
@@ -406,7 +409,7 @@ class Grid:
 
     def erase_peers_candidates(self, cell_index, digit):
         """指定マスと同一ハウスにあるマスから指定の候補数字を消去する"""
-        for i in Grid.peers[cell_index]:
+        for i in self.peers[cell_index]:
             if (c := self.cells[i]).candidates != 0 and i != cell_index:
                 c.remove(digit)
 
@@ -424,7 +427,7 @@ class Grid:
         """すべてのハウスにおいて9マスの合計値が正しいかをリターン"""
         def check_sum_of_house(house):
             return 45 == sum([self.cells[i].digit for i in house])
-        return all([check_sum_of_house(Grid.houses[j]) for j in range(27)])
+        return all([check_sum_of_house(self.houses[j]) for j in range(27)])
 
     def count_blank(self):
         """盤面に含まれるすべての空白マスの個数をリターン"""
@@ -432,7 +435,7 @@ class Grid:
 
     def can_place(self, index, digit):
         """指定したマスに指定した数字を配置可能か（ハウス内に重複数字がないか）をリターン"""
-        for i in Grid.peers[index]:
+        for i in self.peers[index]:
             if self.cells[i].digit == digit:
                 return False  # 1つでも該当ケースがあればNG
         return True
@@ -547,3 +550,92 @@ class Grid:
                 else:
                     print(f'{i:>2d} ', end='')
         print('+----------+----------+----------+')
+
+    def crbe(self):
+        self.last_digit()
+        # skipフラグ
+        skip = [False]*10
+        # 個数カウント初期化
+        digit_count = {}
+        while True:  # sum(skip) < 9:
+            for i in range(1, 10):
+                digit_count[i] = 0
+            # 個数カウント
+            for i in range(81):
+                d = self.cells[i].digit
+                if d != 0:
+                    digit_count[d] += 1
+            # 降順ソート
+            target = 0
+            for i, v in sorted(digit_count.items(), key=lambda x: -x[1]):
+                if v == 9:
+                    skip[i] = True
+                if not skip[i]:
+                    target = i
+                    print(f'target: {target}')
+                    break
+            if target == 0:
+                break
+            # 見つかった数字について各boxをサーチ
+            for i_box, v_box in enumerate(self.boxes):
+                # print(f'target: {target}, box: {i_box}')
+                # 当該boxに対応する行列のHouseインデックス
+                rows = [i_box // 3 * 3 + j for j in range(3)]
+                columns = [i_box % 3 * 3 + j + 9 for j in range(3)]
+                house_indexes = rows+columns
+                # print(f'houses: {house_indexes}')
+                # Box内の9マスにtargetが配置可能かのフラグ
+                can_exist = {}
+                for i in v_box:
+                    can_exist[i] = 1
+                # 対象行列6つのループ
+                for i_house, v_house in enumerate(house_indexes):
+                    if self.digit_exists_in_house(target, v_house):
+                        # if i_house < 3:  # Row
+                        for j in set(v_box) & set(self.houses[v_house]):
+                            # print(f'house {v_house}, remove: {j}')
+                            can_exist[j] = 0
+                        # else:  # Column
+                        # for j in set(v_box)&set(v_house):
+                            # print(f'Col {i_house}, Remove: {j}')
+                            # can_exist[j] = False
+                # すでに数字のあるセルもFalseにする
+                # targetがbox内にある場合もFalse
+                for i, v in enumerate(v_box):
+                    digit = self.cells[v].digit
+                    if digit == target:
+                        for k in v_box:
+                            can_exist[k] = 0
+                        break
+                    if digit > 0:
+                        can_exist[v] = 0
+                # print(f'can_exist: {can_exist.values()}')
+                # 配置可能マスが1つなら確定
+                if sum(can_exist.values()) == 1:
+                    for k, v in can_exist.items():
+                        if v:
+                            self.cells[k].digit = target
+                            # digit_count[target] += 1
+                            print(f'CRBE -> {target} to {k}')
+                            # 本来はCRBEがすべて終了するまでを1つのメソッドにしたい
+                            # 単なるreturnだとskipフラグの管理が無意味
+                            # return
+                    self.last_digit()
+                    for i in range(10):
+                        skip[i] = False
+            skip[target] = True
+
+    def digit_exists_in_house(self, digit, house_index):
+        for i in self.houses[house_index]:
+            if self.cells[i].digit == digit:
+                return True
+        return False
+
+    def set_sequence(self, digits):
+        if len(digits) != 81:
+            raise LogicError('入力には長さ81の配列または文字列が必要です')
+        for i, v in enumerate(digits):
+            if type(v) == str:
+                self.cells[i].digit = int(v)
+            else:
+                self.cells[i].digit = v
