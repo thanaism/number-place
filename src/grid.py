@@ -32,6 +32,10 @@ class Grid:
       指定インデックスに対して同一ボックスに含まれるインデックスの配列
     peers : list(int)
       指定インデックスに対して同一行・列・ボックスに含まれるインデックスの配列
+
+    Notes
+    -----
+    クラスが肥大化してきたので、解法クラスを分離して処理を委譲したい。
     """
     rows = tuple(tuple(i for i in range(81) if i // 9 == j) for j in range(9))
     columns = tuple(tuple(i for i in range(81) if i % 9 == j)
@@ -76,12 +80,15 @@ class Grid:
             'Last Digit': False,
             'Naked Single': False,
             'Hidden Single': False,
-            'Naked Locked Set': False,
-            'Hidden Locked Set': False,
+            'Naked Pair': False,
+            'Hidden Pair': False,
+            'Naked Triple': False,
+            'Hidden Triple': False,
             'Locked Candidates Pointing': False,
             'Locked Candidates Claiming': False,
             'X-Wing': False
         }
+        self.allow_using = copy.deepcopy(self.techniques)
 
     def unfilled_in_house(self, house_index, candidates=0x1FF):
         """指定したハウス内の指定した候補を持つマスのインデックス配列を返す"""
@@ -500,41 +507,51 @@ class Grid:
         while copied.count_blank() > 0:
             blank_before = copied.count_blank()
             # if copied.crbe():
-            #     copied.techniques['CRBE'] = True
-            #     copied.techniques['Last Digit'] = True
-            #     continue
-            if copied.last_digit():
-                continue
-            if copied.naked_single():
-                copied.techniques['Naked Single'] = True
-                continue
-            if copied.hidden_single():
-                copied.techniques['Hidden Single'] = True
-                continue
-            if copied.ls_hidden(2):
-                copied.techniques['Hidden Locked Set'] = True
-                continue
-            if copied.ls_naked(2):
-                copied.techniques['Naked Locked Set'] = True
-                continue
+            # copied.techniques['CRBE'] = True
+            # continue
+            if copied.allow_using['Last Digit']:
+                if copied.last_digit():
+                    copied.techniques['Last Digit'] = True
+                    continue
+            if copied.allow_using['Naked Single']:
+                if copied.naked_single():
+                    copied.techniques['Naked Single'] = True
+                    continue
+            if copied.allow_using['Hidden Single']:
+                if copied.hidden_single():
+                    copied.techniques['Hidden Single'] = True
+                    continue
+            if copied.allow_using['Hidden Pair']:
+                if copied.ls_hidden(2):
+                    copied.techniques['Hidden Pair'] = True
+                    continue
+            if copied.allow_using['Naked Pair']:
+                if copied.ls_naked(2):
+                    copied.techniques['Naked Pair'] = True
+                    continue
             # 一時的に追加
-            # if copied.ls_hidden(3):
-            #     copied.techniques['Hidden Locked Set'] = True
-            #     continue
-            # if copied.ls_naked(3):
-            #     copied.techniques['Naked Locked Set'] = True
-            #     continue
+            if copied.allow_using['Hidden Triple']:
+                if copied.ls_hidden(3):
+                    copied.techniques['Hidden Triple'] = True
+                    continue
+            if copied.allow_using['Naked Triple']:
+                if copied.ls_naked(3):
+                    copied.techniques['Naked Triple'] = True
+                    continue
             # 追加ここまで
-            if copied.lc_claiming():
-                copied.techniques['Locked Candidates Claiming'] = True
-                continue
-            if copied.lc_pointing():
-                copied.techniques['Locked Candidates Pointing'] = True
-                continue
-            if copied.x_wing():
-                copied.techniques['X-Wing'] = True
-                # print(copied.techniques['X-Wing'])
-                continue
+            if copied.allow_using['Locked Candidates Claiming']:
+                if copied.lc_claiming():
+                    copied.techniques['Locked Candidates Claiming'] = True
+                    continue
+            if copied.allow_using['Locked Candidates Pointing']:
+                if copied.lc_pointing():
+                    copied.techniques['Locked Candidates Pointing'] = True
+                    continue
+            if copied.allow_using['X-Wing']:
+                if copied.x_wing():
+                    copied.techniques['X-Wing'] = True
+                    # print(copied.techniques['X-Wing'])
+                    continue
             if copied.count_blank() == blank_before:
                 break
         if copied.count_blank() == 0:  # and copied.sequence == copied.answer:
@@ -760,7 +777,7 @@ class Grid:
                         if v:
                             self.cells[k].digit = target
                             # digit_count[target] += 1
-                            print(f'CRBE -> {target} to {k}')
+                            # print(f'CRBE -> {target} to {k}')
                             # 本来はCRBEがすべて終了するまでを1つのメソッドにしたい
                             # 単なるreturnだとskipフラグの管理が無意味
                             # return
@@ -776,6 +793,7 @@ class Grid:
         return False
 
     def set_sequence(self, digits):
+        """81マスの情報をシーケンスで受け取りセルの確定数字としてセット"""
         if len(digits) != 81:
             raise LogicError('入力には長さ81の配列または文字列が必要です')
         for i, v in enumerate(digits):
