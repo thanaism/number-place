@@ -105,11 +105,16 @@ class Grid:
                             return True
                         self.cells[index].digit = 0
             return False
-        return create_ans(0)
+        if create_ans(0):
+            self.answer = self.sequence
+            return True
+        else:
+            return False
 
-    def create_problem(self):
+    def create_problem(self, givens_count):
         """問題を作成する"""
         r81 = self.rand81()
+        self.__givens = givens_count
 
         def erase_digit(index):
             """完成盤面にランダムに穴あけしていく再帰関数"""
@@ -121,6 +126,7 @@ class Grid:
                 if not self.can_solve:
                     self.cells[i].digit = buf
             erase_digit(index + 1)
+        erase_digit(0)
 
     def last_digit(self):
         """
@@ -176,6 +182,7 @@ class Grid:
         同一ハウス内で当該の候補数字を持つセルが1つのみであれば確定
         """
         # 空白セルが減らなくなるまで繰り返す
+        count = 0
         while True:
             blank_before = self.count_blank
             for digit in range(1, 10):
@@ -184,9 +191,12 @@ class Grid:
                     if len(cells_unfilled) == 1:
                         hidden_single = cells_unfilled[0]
                         self.cells[hidden_single].digit = digit
+                        count += 1
                         self.erase_peers_candidates(hidden_single, digit)
             if self.count_blank == blank_before:
                 break
+        print(f'Hidden single -> filled {count} cells.')
+        return count
 
     def lc_pointing(self):
         """
@@ -194,6 +204,8 @@ class Grid:
         同一ボックス内で単一の行（列）のみに候補数字が存在する場合に、
         同一行（列）でボックス外にある候補を削除可能
         """
+        count = 0
+        # 各数字についてループ
         for digit in range(1, 10):
             row_occupied = [0]*9
             col_occupied = [0]*9
@@ -202,22 +214,40 @@ class Grid:
                     row = self.cells[i].row
                     column = self.cells[i].column
                     box = self.cells[i].box
+                    # 各ボックスに対し対象数字を持つ行列にフラグを立てる
                     row_occupied[box] |= (1 << row)
                     col_occupied[box] |= (1 << (column+9))
+            # 全ボックスループ
             for b in range(9):
+                # 行/列それぞれをチェック
                 for rc in (row_occupied[b], col_occupied[b]):
+                    # もし単一の行/列に収まっていればブロック外の候補を消去
                     if bin(rc).count('1') == 1:
-                        house = bin(rc)[::-1].find('1')
+                        house = bin(rc)[::-1].find('1')  # 該当行列の特定
                         for i in self.unfilled_in_house(house, 1 << (digit-1)):
                             if self.cells[i].box != b:
                                 self.cells[i].remove(digit)
+                                count += 1
+                        if count > 0:
+                            print('Locked Candidates(pointing) -> '
+                                  + f'removed {count} candidates.')
+                            return count
+        return 0
 
     def lc_claiming(self):
         """
         Locked candidates(Claiming)法
         同一行（列）内で単一のボックスのみに候補数字が存在する場合に、
         同一ボックスで行（列）外にある候補を削除可能
+        <イメージ>
+         対象     b1      b2
+        +-------+-------+-------+
+        | x x   |       |       | non_common
+        | o o o | x x   |       | bit_b1
+        | o o o |       | x x   | bit_b2
+        +-------+-------+-------+
         """
+        count = 0
         for digit in range(1, 10):
             row_occupied = [0]*9
             col_occupied = [0]*9
@@ -225,27 +255,39 @@ class Grid:
                 if cell.has(digit):
                     row_occupied[cell.box] |= (1 << cell.row)
                     col_occupied[cell.box] |= (1 << cell.column)
+            # ここまではLC_Pointingと同じ
             for b in range(9):
                 peer_boxes = self.peer_boxes_in_chute(b)
                 for i, v in enumerate([row_occupied, col_occupied]):
+                    # 同一floor/tower内の残りのbox2つを特定
                     b1, b2 = peer_boxes[0+i*2], peer_boxes[1+i*2]
-                    if bin(v[b]).count('1') <= 1:
+                    if bin(v[b]).count('1') <= 1:  # 対象boxに消去しうる候補なし
                         continue
-                    if (bit_b1 := v[b1] & 0x1FF) <= 0:
+                    if (bit_b1 := v[b1] & 0x1FF) <= 0:  # chute内boxに候補なし
                         continue
-                    if (bit_b2 := v[b2] & 0x1FF) <= 0:
+                    if (bit_b2 := v[b2] & 0x1FF) <= 0:  # chute内boxに候補なし
                         continue
+                    # 他の2boxが候補を持つ行/列にビットを立てる
                     b12 = bit_b1 | bit_b2
+                    # 対象boxと非共通の行/列を抽出
                     non_common = bin(v[b] & (b12 ^ 0x1FF))[::-1].find('1')
+                    # 消去条件に該当
                     if bin(b12).count('1') == 2 and non_common >= 0:
                         for j in self.unfilled_in_house(18+b, 1 << (digit-1)):
                             found_cell = self.cells[j]
                             if found_cell.row != non_common and i == 0:
                                 self.cells[j].remove(digit)
+                                count += 1
                                 print(f'remove {digit} in house {j}')
                             if found_cell.column != non_common and i == 1:
                                 self.cells[j].remove(digit)
+                                count += 1
                                 print(f'remove {digit} in house {j}')
+                    if count > 0:
+                        print('Locked Candidates(claiming) -> '
+                              + f'removed {count} candidates.')
+                        return count
+        return 0
 
     def ls_hidden(self, dim):
         """
@@ -271,6 +313,7 @@ class Grid:
         非選択セルの個数＝ハウス内の候補数字数-次数
         よって、len(ex_candidates)==len(excludes)が条件
         """
+        count = 0
         for i_house, v_house in enumerate(self.houses):
             cells_unfilled = self.unfilled_in_house(i_house)
             ucell_count = len(cells_unfilled)
@@ -294,8 +337,16 @@ class Grid:
                             if f'{bit:09b}'[::-1][j] == '1':
                                 rm += j+1,
                         # print(f'includes: {includes}, excludes: {excludes}')
-                        print(f'house: {i_house}, index: {i}, remove: {rm}')
-                        self.cells[i].remove(*rm)
+                        # print(f'house: {i_house}, index: {i}, remove: {rm}')
+                        for n in rm:
+                            if self.cells[i].has(n):
+                                self.cells[i].remove(n)
+                                count += 1
+                    if count > 0:
+                        print('Locked Set(Hidden) -> '
+                              + f'removed {count} candidates.')
+                        return count
+        return 0
 
     def ls_naked(self, dim):
         """
@@ -310,6 +361,7 @@ class Grid:
         -----
         次数＝選択セルの候補数字数＝不定
         """
+        count = 0
         for i_house, v_house in enumerate(self.houses):
             cells_unfilled = self.unfilled_in_house(i_house)
             ucell_count = len(cells_unfilled)
@@ -333,8 +385,16 @@ class Grid:
                             if f'{bit:09b}'[::-1][j] == '1':
                                 rm += j+1,
                         # print(f'includes: {includes}, excludes: {excludes}')
-                        print(f'house: {i_house}, index: {i}, remove: {rm}')
-                        self.cells[i].remove(*rm)
+                        # print(f'house: {i_house}, index: {i}, remove: {rm}')
+                        for n in rm:
+                            if self.cells[i].has(n):
+                                self.cells[i].remove(n)
+                                count += 1
+                    if count > 0:
+                        print('Locked Set(Naked) -> '
+                              + f'removed {count} candidates.')
+                        return count
+        return 0
 
     def x_wing(self):
         """
@@ -389,11 +449,16 @@ class Grid:
                                 print(f'remove: {removables}')
                                 for i in removables:
                                     self.cells[i].remove(digit)
+                                length = len(removables)
+                                if length > 0:
+                                    print('X-Wing -> '
+                                          + f'removed {length} candidates.')
+                                return length
                                 # remain = [i for i in range(
                                 #     81) if self.cells[i].has(digit)]
                                 # self.show_only_input_index(*remain)
-                                return True
-        return False
+                                # return True
+        return 0
 
     @ staticmethod
     def peer_boxes_in_chute(box_index):
@@ -417,7 +482,21 @@ class Grid:
     @ property
     def can_solve(self):
         """盤面が仮定法なしで解けるかを返す"""
-        # CRBE法：後述の下位互換のため一旦パス
+        # 空白セルが減らなくなるまで繰り返す
+        while True:
+            blank_before = self.count_blank
+            # 処理
+            if self.count_blank == blank_before:
+                break
+        # CRBE法
+        self.crbe()
+        self.naked_single()
+        self.hidden_single()
+        self.ls_hidden()
+        self.ls_naked()
+        self.lc_claiming()
+        self.lc_pointing()
+        self.x_wing()
 
     def erase_peers_candidates(self, cell_index, digit):
         """指定マスと同一ハウスにあるマスから指定の候補数字を消去する"""

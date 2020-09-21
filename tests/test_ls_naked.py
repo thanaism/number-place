@@ -26,7 +26,8 @@ def test_ls_naked(house, rm, ls, grid_creation):
         grid.cells[i].remove(*invset)
     # 実行
     grid.show_only_input_index(*ls)
-    grid.ls_naked(len(rm))
+    while grid.ls_naked(len(rm)):
+        pass
     # 判定用ビット作成
     bit = 0x0
     for i in invset:
