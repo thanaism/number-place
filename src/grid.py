@@ -3,6 +3,7 @@ from datetime import datetime
 import random
 import itertools
 import copy
+# import sys
 
 
 class LogicError(Exception):
@@ -69,6 +70,7 @@ class Grid:
         self.difficulty = difficulty
         self.type = np_type  # 0:normal,1:diagonal,2:sum
         self.cells = [Cell(i, 0) for i in range(81)]
+        self.answer = None
 
     def unfilled_in_house(self, house_index, candidates=0x1FF):
         """指定したハウス内の指定した候補を持つマスのインデックス配列を返す"""
@@ -80,19 +82,22 @@ class Grid:
         return self.cells[index].candidates | 1 << digit - 1 == 1 << digit - 1
 
     def create(self):
-        """問題を生成する"""
-        self.__givens = 20
-        r81 = self.rand81()
-
+        # sys.setrecursionlimit(2000)
+        # print(f'recursion limit: {sys.getrecursionlimit()}')
+        """解答を生成する"""
         def create_ans(index):
             """解答の盤面を生成する再帰関数"""
             for i in range(index, 81):
                 if self.cells[i].digit == 0:
                     index = i
                     break
+            # print(f'index: {index}')
+            if self.cells[index].digit > 0 and index == 80:
+                return True
             for j in self.rand9():
                 if self.can_place(index, j):
                     self.cells[index].digit = j
+                    # self.show_grid()
                     if index + 1 == 81:
                         return True
                     else:
@@ -100,6 +105,11 @@ class Grid:
                             return True
                         self.cells[index].digit = 0
             return False
+        return create_ans(0)
+
+    def create_problem(self):
+        """問題を作成する"""
+        r81 = self.rand81()
 
         def erase_digit(index):
             """完成盤面にランダムに穴あけしていく再帰関数"""
@@ -111,8 +121,6 @@ class Grid:
                 if not self.can_solve:
                     self.cells[i].digit = buf
             erase_digit(index + 1)
-        create_ans(0)
-        # erase_digit(0)
 
     def last_digit(self):
         """
@@ -250,6 +258,9 @@ class Grid:
 
         Notes
         -----
+        # サムナンプレでは、サムをハウスに含めるとハウス個数が不定のためおそらくバグとなる。
+
+        # 高速化するならhideenとnakedを1つの探索にする
         ハウス内の空白マス数：ucell_count
         includes：選択セル
         excludes：非選択セル
@@ -332,6 +343,7 @@ class Grid:
         N個以下の対象数字を含むBase set
         それをカバーするCover setの概念を使用する
         今回はX-Wingケースのみに絞ってビットを使用せず書く
+        すべてのナンプレで使用可能なはず。
         """
         cmb = itertools.combinations
         fish_size = 2
