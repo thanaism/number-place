@@ -28,7 +28,8 @@ def test_ls_hidden(house, rm, ls, grid_creation):
         grid.cells[i].add(*rm)
     # 実行
     grid.show_only_input_index(*ls)
-    grid.ls_hidden(len(rm))
+    while grid.ls_hidden(len(rm)):
+        pass
     # 判定用ビット作成
     bit = 0x0
     for i in rm:

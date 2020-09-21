@@ -40,6 +40,7 @@ def test_create(sequence, grid_creation):
     # grid.show_grid()
     print(grid.create())
     grid.show_grid()
+    print(grid.answer)
     assert grid.sum_check() is True
 
 
