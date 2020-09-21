@@ -71,6 +71,17 @@ class Grid:
         self.type = np_type  # 0:normal,1:diagonal,2:sum
         self.cells = [Cell(i, 0) for i in range(81)]
         self.answer = None
+        self.techniques = {
+            'CRBE': False,
+            'Last Digit': False,
+            'Naked Single': False,
+            'Hidden Single': False,
+            'Naked Locked Set': False,
+            'Hidden Locked Set': False,
+            'Locked Candidates Pointing': False,
+            'Locked Candidates Claiming': False,
+            'X-Wing': False
+        }
 
     def unfilled_in_house(self, house_index, candidates=0x1FF):
         """指定したハウス内の指定した候補を持つマスのインデックス配列を返す"""
@@ -147,7 +158,7 @@ class Grid:
                     remain -= {d}
             if unfilled == 1:
                 target = remain.pop()
-                print(f'Last digit -> {target} to {idx}')
+                # print(f'Last digit -> {target} to {idx}')
                 self.cells[idx].digit = target
                 count += 1
         return count
@@ -173,7 +184,8 @@ class Grid:
                     self.erase_peers_candidates(i, c.digit)
             if self.count_blank == blank_before:
                 break
-        print(f'Naked single -> filled {count} cells.')
+        # if count > 0:
+            # print(f'Naked single -> filled {count} cells.')
         return count
 
     def hidden_single(self):
@@ -195,7 +207,8 @@ class Grid:
                         self.erase_peers_candidates(hidden_single, digit)
             if self.count_blank == blank_before:
                 break
-        print(f'Hidden single -> filled {count} cells.')
+        # if count > 0:
+            # print(f'Hidden single -> filled {count} cells.')
         return count
 
     def lc_pointing(self):
@@ -229,8 +242,8 @@ class Grid:
                                 self.cells[i].remove(digit)
                                 count += 1
                         if count > 0:
-                            print('Locked Candidates(pointing) -> '
-                                  + f'removed {count} candidates.')
+                            # print('Locked Candidates(pointing) -> '
+                            #       + f'removed {count} candidates.')
                             return count
         return 0
 
@@ -278,14 +291,14 @@ class Grid:
                             if found_cell.row != non_common and i == 0:
                                 self.cells[j].remove(digit)
                                 count += 1
-                                print(f'remove {digit} in house {j}')
+                                # print(f'remove {digit} in house {j}')
                             if found_cell.column != non_common and i == 1:
                                 self.cells[j].remove(digit)
                                 count += 1
-                                print(f'remove {digit} in house {j}')
+                                # print(f'remove {digit} in house {j}')
                     if count > 0:
-                        print('Locked Candidates(claiming) -> '
-                              + f'removed {count} candidates.')
+                        # print('Locked Candidates(claiming) -> '
+                        #       + f'removed {count} candidates.')
                         return count
         return 0
 
@@ -343,8 +356,8 @@ class Grid:
                                 self.cells[i].remove(n)
                                 count += 1
                     if count > 0:
-                        print('Locked Set(Hidden) -> '
-                              + f'removed {count} candidates.')
+                        # print(f'Locked Set(Hidden,{dim}) -> '
+                        #       + f'removed {count} candidates.')
                         return count
         return 0
 
@@ -391,8 +404,8 @@ class Grid:
                                 self.cells[i].remove(n)
                                 count += 1
                     if count > 0:
-                        print('Locked Set(Naked) -> '
-                              + f'removed {count} candidates.')
+                        # print(f'Locked Set(Naked,{dim}) -> '
+                        #       + f'removed {count} candidates.')
                         return count
         return 0
 
@@ -444,16 +457,16 @@ class Grid:
                         if bs_indexes.issubset(cs_indexes):
                             removables = cs_indexes-bs_indexes
                             if len(removables) > 0:
-                                print(
-                                    f'X-Wing: {bs_indexes}, {cs_indexes}')
-                                print(f'remove: {removables}')
+                                # print(
+                                #     f'X-Wing: {bs_indexes}, {cs_indexes}')
+                                # print(f'remove: {removables}')
                                 for i in removables:
                                     self.cells[i].remove(digit)
                                 length = len(removables)
                                 if length > 0:
-                                    print('X-Wing -> '
-                                          + f'removed {length} candidates.')
-                                return length
+                                    # print('X-Wing -> '
+                                    #       + f'removed {length} candidates.')
+                                    return length
                                 # remain = [i for i in range(
                                 #     81) if self.cells[i].has(digit)]
                                 # self.show_only_input_index(*remain)
@@ -482,21 +495,57 @@ class Grid:
     @ property
     def can_solve(self):
         """盤面が仮定法なしで解けるかを返す"""
+        copied = copy.deepcopy(self)
         # 空白セルが減らなくなるまで繰り返す
-        while True:
-            blank_before = self.count_blank
-            # 処理
-            if self.count_blank == blank_before:
+        while copied.count_blank() > 0:
+            blank_before = copied.count_blank()
+            # if copied.crbe():
+            #     copied.techniques['CRBE'] = True
+            #     copied.techniques['Last Digit'] = True
+            #     continue
+            if copied.last_digit():
+                continue
+            if copied.naked_single():
+                copied.techniques['Naked Single'] = True
+                continue
+            if copied.hidden_single():
+                copied.techniques['Hidden Single'] = True
+                continue
+            if copied.ls_hidden(2):
+                copied.techniques['Hidden Locked Set'] = True
+                continue
+            if copied.ls_naked(2):
+                copied.techniques['Naked Locked Set'] = True
+                continue
+            # 一時的に追加
+            # if copied.ls_hidden(3):
+            #     copied.techniques['Hidden Locked Set'] = True
+            #     continue
+            # if copied.ls_naked(3):
+            #     copied.techniques['Naked Locked Set'] = True
+            #     continue
+            # 追加ここまで
+            if copied.lc_claiming():
+                copied.techniques['Locked Candidates Claiming'] = True
+                continue
+            if copied.lc_pointing():
+                copied.techniques['Locked Candidates Pointing'] = True
+                continue
+            if copied.x_wing():
+                copied.techniques['X-Wing'] = True
+                # print(copied.techniques['X-Wing'])
+                continue
+            if copied.count_blank() == blank_before:
                 break
-        # CRBE法
-        self.crbe()
-        self.naked_single()
-        self.hidden_single()
-        self.ls_hidden()
-        self.ls_naked()
-        self.lc_claiming()
-        self.lc_pointing()
-        self.x_wing()
+        if copied.count_blank() == 0:  # and copied.sequence == copied.answer:
+            # copied.show_grid()
+            self.techniques = copied.techniques
+            # print('<---------- solved ---------->')
+            # copied.show_grid()
+            # del copied
+            return True
+        else:
+            return False
 
     def erase_peers_candidates(self, cell_index, digit):
         """指定マスと同一ハウスにあるマスから指定の候補数字を消去する"""
@@ -519,6 +568,10 @@ class Grid:
         def check_sum_of_house(house):
             return 45 == sum([self.cells[i].digit for i in house])
         return all([check_sum_of_house(self.houses[j]) for j in range(27)])
+
+    def count_digits(self):
+        """盤面に含まれる確定数字の個数（問題作成後はヒント数）をリターン"""
+        return 81-self.sequence.count('0')
 
     def count_blank(self):
         """盤面に含まれるすべての空白マスの個数をリターン"""
@@ -663,7 +716,7 @@ class Grid:
                     skip[i] = True
                 if not skip[i]:
                     target = i
-                    print(f'target: {target}')
+                    # print(f'target: {target}')
                     break
             if target == 0:
                 break
