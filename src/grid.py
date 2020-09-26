@@ -1,8 +1,10 @@
 from .cell import Cell
+from .group import Group
 from datetime import datetime
 import random
 import itertools
 import copy
+
 # import sys
 
 
@@ -37,29 +39,24 @@ class Grid:
     -----
     クラスが肥大化してきたので、解法クラスを分離して処理を委譲したい。
     """
-    rows = tuple(tuple(i for i in range(81) if i // 9 == j) for j in range(9))
-    columns = tuple(tuple(i for i in range(81) if i % 9 == j)
-                    for j in range(9))
-    boxes = tuple(tuple(i for i in range(81) if i // 27 * 3 + i %
-                        9 // 3 == j) for j in range(9))
+
+    rows = [[i for i in range(81) if i // 9 == j] for j in range(9)]
+    columns = [[i for i in range(81) if i % 9 == j] for j in range(9)]
+    boxes = [[i for i in range(81) if i // 27 * 3 + i % 9 // 3 == j] for j in range(9)]
     houses = rows + columns + boxes
-    peers_row = tuple(tuple(i + j // 9 * 9 for i in range(9))
-                      for j in range(81))
-    peers_column = tuple(tuple(9 * i + j % 9 for i in range(9))
-                         for j in range(81))
-    peers_box = tuple(tuple(i // 3 * 6 + i + j // 27 * 27 + j %
-                            9 // 3 * 3 for i in range(9)) for j in range(81))
-    peers = tuple({*i, *j, *k}
-                  for (i, j, k) in zip(peers_box, peers_column, peers_row))
-    floors = tuple(tuple(i for i in range(81) if i // 9 // 3 == j)
-                   for j in range(3))
-    towers = tuple(tuple(i for i in range(81) if i % 9 // 3 == j)
-                   for j in range(3))
+    peers_row = [[i + j // 9 * 9 for i in range(9)] for j in range(81)]
+    peers_column = [[9 * i + j % 9 for i in range(9)] for j in range(81)]
+    peers_box = [
+        [i // 3 * 6 + i + j // 27 * 27 + j % 9 // 3 * 3 for i in range(9)]
+        for j in range(81)
+    ]
+    floors = [[i for i in range(81) if i // 9 // 3 == j] for j in range(3)]
+    towers = [[i for i in range(81) if i % 9 // 3 == j] for j in range(3)]
     chutes = floors + towers
-    peers_floor = tuple(tuple(i + j // 27 * 27 for i in range(27))
-                        for j in range(81))
-    peers_tower = tuple(tuple(i // 3 * 9 + j % 9 // 3 * 3 + i %
-                              3 for i in range(27)) for j in range(81))
+    peers_floor = [[i + j // 27 * 27 for i in range(27)] for j in range(81)]
+    peers_tower = [
+        [i // 3 * 9 + j % 9 // 3 * 3 + i % 3 for i in range(27)] for j in range(81)
+    ]
 
     def __init__(self, difficulty=0, np_type=0):
         """
@@ -72,7 +69,7 @@ class Grid:
         """
         self.creation_datetime = f'{datetime.now():%m%d%H%M%S%f}'
         self.difficulty = difficulty
-        self.type = np_type  # 0:normal,1:diagonal,2:sum
+        self.type = np_type  # 0:normal,1:diagonal,2:sum,3:jig
         self.cells = [Cell(i, 0) for i in range(81)]
         self.answer = None
         self.techniques = {
@@ -86,14 +83,57 @@ class Grid:
             'Hidden Triple': False,
             'Locked Candidates Pointing': False,
             'Locked Candidates Claiming': False,
-            'X-Wing': False
+            'X-Wing': False,
         }
         self.allow_using = copy.deepcopy(self.techniques)
+        self.houses = self.rows + self.columns + self.boxes
+        self.peers = [
+            {*i, *j, *k}
+            for (i, j, k) in zip(self.peers_box, self.peers_column, self.peers_row)
+        ]
+        if np_type == 1:
+            diagonal1 = [i for i in range(81) if i % 10 == 0]
+            diagonal2 = [i for i in range(81) if i % 8 == 0 and i != 0 and i != 80]
+            self.diagonals = [diagonal1, diagonal2]
+            print(f'diagonals: {self.diagonals}')
+            peers_diagonal1 = [
+                [i * 10 for i in range(9)] if j % 10 == 0 else [] for j in range(81)
+            ]
+            peers_diagonal2 = [
+                [(i + 1) * 8 for i in range(9)]
+                if j % 8 == 0 and j != 0 and j != 80
+                else []
+                for j in range(81)
+            ]
+            self.houses += [diagonal1, diagonal2]
+            self.peers = [
+                {*i, *j, *k, *l, *m}
+                for (i, j, k, l, m) in zip(
+                    self.peers_box,
+                    self.peers_column,
+                    self.peers_row,
+                    peers_diagonal1,
+                    peers_diagonal2,
+                )
+            ]
+        if np_type == 2:
+            gr = Group()
+            # サムグループの上限変更は要望あれば
+            gr.get_new_random_group(2, 5)
+            self.group = gr.group.copy()
+        if np_type == 3:
+            gr = Group()
+            # ジグソーシャッフル
+            for _ in [1] * 35:
+                gr.shuffle()
+            self.jigsaws = gr.group.copy()
+            self.houses = self.rows + self.columns + self.jigsaws
 
     def unfilled_in_house(self, house_index, candidates=0x1FF):
         """指定したハウス内の指定した候補を持つマスのインデックス配列を返す"""
-        return [i for i in self.houses[house_index]
-                if self.cells[i].candidates & candidates]
+        return [
+            i for i in self.houses[house_index] if self.cells[i].candidates & candidates
+        ]
 
     def single_candidate(self, index, digit):
         """対象セルが対象数字を唯一の候補として持つかを真偽値でリターン"""
@@ -103,6 +143,7 @@ class Grid:
         # sys.setrecursionlimit(2000)
         # print(f'recursion limit: {sys.getrecursionlimit()}')
         """解答を生成する"""
+
         def create_ans(index):
             """解答の盤面を生成する再帰関数"""
             for i in range(index, 81):
@@ -123,6 +164,7 @@ class Grid:
                             return True
                         self.cells[index].digit = 0
             return False
+
         if create_ans(0):
             self.answer = self.sequence
             return True
@@ -144,6 +186,7 @@ class Grid:
                 if not self.can_solve:
                     self.cells[i].digit = buf
             erase_digit(index + 1)
+
         erase_digit(0)
 
     def last_digit(self):
@@ -192,7 +235,7 @@ class Grid:
             if self.count_blank == blank_before:
                 break
         # if count > 0:
-            # print(f'Naked single -> filled {count} cells.')
+        # print(f'Naked single -> filled {count} cells.')
         return count
 
     def hidden_single(self):
@@ -206,7 +249,7 @@ class Grid:
             blank_before = self.count_blank
             for digit in range(1, 10):
                 for i, house in enumerate(self.houses):
-                    cells_unfilled = self.unfilled_in_house(i, 1 << (digit-1))
+                    cells_unfilled = self.unfilled_in_house(i, 1 << (digit - 1))
                     if len(cells_unfilled) == 1:
                         hidden_single = cells_unfilled[0]
                         self.cells[hidden_single].digit = digit
@@ -215,7 +258,7 @@ class Grid:
             if self.count_blank == blank_before:
                 break
         # if count > 0:
-            # print(f'Hidden single -> filled {count} cells.')
+        # print(f'Hidden single -> filled {count} cells.')
         return count
 
     def lc_pointing(self):
@@ -227,16 +270,16 @@ class Grid:
         count = 0
         # 各数字についてループ
         for digit in range(1, 10):
-            row_occupied = [0]*9
-            col_occupied = [0]*9
+            row_occupied = [0] * 9
+            col_occupied = [0] * 9
             for i in range(81):
                 if self.cells[i].has(digit):
                     row = self.cells[i].row
                     column = self.cells[i].column
                     box = self.cells[i].box
                     # 各ボックスに対し対象数字を持つ行列にフラグを立てる
-                    row_occupied[box] |= (1 << row)
-                    col_occupied[box] |= (1 << (column+9))
+                    row_occupied[box] |= 1 << row
+                    col_occupied[box] |= 1 << (column + 9)
             # 全ボックスループ
             for b in range(9):
                 # 行/列それぞれをチェック
@@ -244,7 +287,7 @@ class Grid:
                     # もし単一の行/列に収まっていればブロック外の候補を消去
                     if bin(rc).count('1') == 1:
                         house = bin(rc)[::-1].find('1')  # 該当行列の特定
-                        for i in self.unfilled_in_house(house, 1 << (digit-1)):
+                        for i in self.unfilled_in_house(house, 1 << (digit - 1)):
                             if self.cells[i].box != b:
                                 self.cells[i].remove(digit)
                                 count += 1
@@ -269,18 +312,18 @@ class Grid:
         """
         count = 0
         for digit in range(1, 10):
-            row_occupied = [0]*9
-            col_occupied = [0]*9
+            row_occupied = [0] * 9
+            col_occupied = [0] * 9
             for cell in self.cells:
                 if cell.has(digit):
-                    row_occupied[cell.box] |= (1 << cell.row)
-                    col_occupied[cell.box] |= (1 << cell.column)
+                    row_occupied[cell.box] |= 1 << cell.row
+                    col_occupied[cell.box] |= 1 << cell.column
             # ここまではLC_Pointingと同じ
             for b in range(9):
                 peer_boxes = self.peer_boxes_in_chute(b)
                 for i, v in enumerate([row_occupied, col_occupied]):
                     # 同一floor/tower内の残りのbox2つを特定
-                    b1, b2 = peer_boxes[0+i*2], peer_boxes[1+i*2]
+                    b1, b2 = peer_boxes[0 + i * 2], peer_boxes[1 + i * 2]
                     if bin(v[b]).count('1') <= 1:  # 対象boxに消去しうる候補なし
                         continue
                     if (bit_b1 := v[b1] & 0x1FF) <= 0:  # chute内boxに候補なし
@@ -293,7 +336,7 @@ class Grid:
                     non_common = bin(v[b] & (b12 ^ 0x1FF))[::-1].find('1')
                     # 消去条件に該当
                     if bin(b12).count('1') == 2 and non_common >= 0:
-                        for j in self.unfilled_in_house(18+b, 1 << (digit-1)):
+                        for j in self.unfilled_in_house(18 + b, 1 << (digit - 1)):
                             found_cell = self.cells[j]
                             if found_cell.row != non_common and i == 0:
                                 self.cells[j].remove(digit)
@@ -341,7 +384,7 @@ class Grid:
                 continue
             for cmb in itertools.combinations(cells_unfilled, dim):
                 includes = set(cmb)
-                excludes = set(v_house)-includes
+                excludes = set(v_house) - includes
                 in_candidates = ex_candidates = 0
                 for i in includes:
                     in_candidates |= self.cells[i].candidates
@@ -349,13 +392,13 @@ class Grid:
                     ex_candidates |= self.cells[i].candidates
                 # in_bitcount = bin(in_candidates).count('1')
                 ex_bitcount = bin(ex_candidates).count('1')
-                if ex_bitcount == len(excludes) == ucell_count-dim:
+                if ex_bitcount == len(excludes) == ucell_count - dim:
                     for i in includes:
                         bit = self.cells[i].candidates & ex_candidates
                         rm = []
                         for j in range(9):
                             if f'{bit:09b}'[::-1][j] == '1':
-                                rm += j+1,
+                                rm += (j + 1,)
                         # print(f'includes: {includes}, excludes: {excludes}')
                         # print(f'house: {i_house}, index: {i}, remove: {rm}')
                         for n in rm:
@@ -389,7 +432,7 @@ class Grid:
                 continue
             for cmb in itertools.combinations(cells_unfilled, dim):
                 includes = set(cmb)
-                excludes = set(v_house)-includes
+                excludes = set(v_house) - includes
                 in_candidates = ex_candidates = 0
                 for i in includes:
                     in_candidates |= self.cells[i].candidates
@@ -403,7 +446,7 @@ class Grid:
                         rm = []
                         for j in range(9):
                             if f'{bit:09b}'[::-1][j] == '1':
-                                rm += j+1,
+                                rm += (j + 1,)
                         # print(f'includes: {includes}, excludes: {excludes}')
                         # print(f'house: {i_house}, index: {i}, remove: {rm}')
                         for n in rm:
@@ -428,17 +471,17 @@ class Grid:
         cmb = itertools.combinations
         fish_size = 2
         for digit in range(1, 10):
-            bit = 1 << (digit-1)
+            bit = 1 << (digit - 1)
             # print(f'digit: {digit} starts...')
             # Row -> Col, Col -> Row
             for rowcol in [(0, 9), (9, 0)]:
                 base_sets = []
                 for rc in range(9):
-                    unfilleds = self.unfilled_in_house(rc+rowcol[0], bit)
+                    unfilleds = self.unfilled_in_house(rc + rowcol[0], bit)
                     if len(unfilleds) == fish_size:
                         # print(
                         #     f'base house: {rc+rowcol[0]}')
-                        base_sets += unfilleds,
+                        base_sets += (unfilleds,)
                         # print(f'base sets: {base_sets}')
                 for base_set in cmb(base_sets, fish_size):
                     # print(f'base set found: {base_set[0],base_set[1]}')
@@ -448,11 +491,11 @@ class Grid:
                     # bs_indexesにbase_setのindexが含まれている状態
                     cover_sets = []
                     for rc in range(9):
-                        unfilleds = self.unfilled_in_house(rc+rowcol[1], bit)
+                        unfilleds = self.unfilled_in_house(rc + rowcol[1], bit)
                         if len(unfilleds) >= 2:
                             # print(
                             #     f'cover house: {rc+rowcol[1]}')
-                            cover_sets += unfilleds,
+                            cover_sets += (unfilleds,)
                             # print(f'cover sets: {cover_sets}')
                     for cover_set in cmb(cover_sets, fish_size):
                         # print(
@@ -462,7 +505,7 @@ class Grid:
                             cs_indexes.update({*i})
                         # cs_indexesにcover_setのindexが含まれている状態
                         if bs_indexes.issubset(cs_indexes):
-                            removables = cs_indexes-bs_indexes
+                            removables = cs_indexes - bs_indexes
                             if len(removables) > 0:
                                 # print(
                                 #     f'X-Wing: {bs_indexes}, {cs_indexes}')
@@ -480,7 +523,7 @@ class Grid:
                                 # return True
         return 0
 
-    @ staticmethod
+    @staticmethod
     def peer_boxes_in_chute(box_index):
         """
         Returns
@@ -489,17 +532,17 @@ class Grid:
         同一floorのboxインデックス、同一towerのboxインデックス
         """
         b = box_index
-        br1 = b//3*3+(b+1) % 3
-        br2 = b//3*3+(b+2) % 3
-        bc1 = (b+3) % 9
-        bc2 = (b+6) % 9
+        br1 = b // 3 * 3 + (b + 1) % 3
+        br2 = b // 3 * 3 + (b + 2) % 3
+        bc1 = (b + 3) % 9
+        bc2 = (b + 6) % 9
         return (br1, br2, bc1, bc2)
 
     def copy_grid(self):
         copied_grid = copy.deepcopy(self)
         return copied_grid
 
-    @ property
+    @property
     def can_solve(self):
         """盤面が仮定法なしで解けるかを返す"""
         copied = copy.deepcopy(self)
@@ -570,25 +613,27 @@ class Grid:
             if (c := self.cells[i]).candidates != 0 and i != cell_index:
                 c.remove(digit)
 
-    @ property
+    @property
     def sequence(self):
         """全マスの数字を連結した文字列でリターン"""
         return ''.join([str(self.cells[i].digit) for i in range(81)])
 
-    @ property
+    @property
     def grid(self):
         """盤面をlist[int]で返す"""
         return [self.cells[i].digit for i in range(81)]
 
     def sum_check(self):
         """すべてのハウスにおいて9マスの合計値が正しいかをリターン"""
+
         def check_sum_of_house(house):
             return 45 == sum([self.cells[i].digit for i in house])
+
         return all([check_sum_of_house(self.houses[j]) for j in range(27)])
 
     def count_digits(self):
         """盤面に含まれる確定数字の個数（問題作成後はヒント数）をリターン"""
-        return 81-self.sequence.count('0')
+        return 81 - self.sequence.count('0')
 
     def count_blank(self):
         """盤面に含まれるすべての空白マスの個数をリターン"""
@@ -620,17 +665,17 @@ class Grid:
                 print(f'{d} ', end='')
         print('+-------+-------+-------+')
 
-    @ staticmethod
+    @staticmethod
     def rand9():
         """1-9のランダム順列をリターン"""
         return random.sample([*range(1, 10)], 9)
 
-    @ staticmethod
+    @staticmethod
     def rand81():
         """1-81のランダム順列をリターン"""
         return random.sample([*range(81)], 81)
 
-    @ staticmethod
+    @staticmethod
     def rotate(grid):
         """
         gridを入力すると回転・反転の全8パターンをリストにしてリターン
@@ -653,26 +698,27 @@ class Grid:
             grid = [int(i) for i in grid]
 
         def get_other_pattern_index():
-            pattern = [(i//9, i % 9, 8 - i//9, 8-i % 9) for i in range(81)]
+            pattern = [(i // 9, i % 9, 8 - i // 9, 8 - i % 9) for i in range(81)]
             indexes = []
-            pairs = [(i, j) for i, j in itertools.permutations(
-                range(4), 2) if (i ^ j) & 1]
+            pairs = [
+                (i, j) for i, j in itertools.permutations(range(4), 2) if (i ^ j) & 1
+            ]
             for row, column in pairs:  # itertools.combinations(range(4), 2):
-                indexes += [grid[i[row]*9+i[column]] for i in pattern],
+                indexes += ([grid[i[row] * 9 + i[column]] for i in pattern],)
             return indexes
 
         grids = []
         for i in get_other_pattern_index():
-            grids += i,
+            grids += (i,)
 
         return grids
 
-    @ staticmethod
+    @staticmethod
     def show(*digits):
         """1-9の入力整数タプルに対して、立っているビット位置をコンソールに表示（候補数字フラグ確認用）"""
         print(f'{0x1FF&sum([1<<(i-1) for i in digits]):b}')
 
-    @ staticmethod
+    @staticmethod
     def show_index():
         """インデックスの位置関係をコンソールに表示"""
         print('+----------+----------+----------+')
@@ -687,7 +733,7 @@ class Grid:
                 print(f'{i:>2d} ', end='')
         print('+----------+----------+----------+')
 
-    @ staticmethod
+    @staticmethod
     def show_only_input_index(*indexes):
         """インデックスの位置関係をコンソールに表示"""
         print('+----------+----------+----------+')
@@ -715,7 +761,7 @@ class Grid:
     def crbe(self):
         self.last_digit()
         # skipフラグ
-        skip = [False]*10
+        skip = [False] * 10
         # 個数カウント初期化
         digit_count = {}
         while True:  # sum(skip) < 9:
@@ -743,7 +789,7 @@ class Grid:
                 # 当該boxに対応する行列のHouseインデックス
                 rows = [i_box // 3 * 3 + j for j in range(3)]
                 columns = [i_box % 3 * 3 + j + 9 for j in range(3)]
-                house_indexes = rows+columns
+                house_indexes = rows + columns
                 # print(f'houses: {house_indexes}')
                 # Box内の9マスにtargetが配置可能かのフラグ
                 can_exist = {}
@@ -758,8 +804,8 @@ class Grid:
                             can_exist[j] = 0
                         # else:  # Column
                         # for j in set(v_box)&set(v_house):
-                            # print(f'Col {i_house}, Remove: {j}')
-                            # can_exist[j] = False
+                        # print(f'Col {i_house}, Remove: {j}')
+                        # can_exist[j] = False
                 # すでに数字のあるセルもFalseにする
                 # targetがbox内にある場合もFalse
                 for i, v in enumerate(v_box):
