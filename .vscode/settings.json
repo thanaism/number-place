@@ -1,4 +1,20 @@
 {
+  "files.watcherExclude": {
+    "**/venv/**": true
+  },
   "editor.detectIndentation": false,
-  "editor.tabSize": 4
+  "editor.tabSize": 4,
+  "python.venvPath": ".venv",
+  "python.pythonPath": ".venv/bin/python",
+  "python.linting.pylintEnabled": false,
+  "python.linting.flake8Enabled": true,
+  "python.linting.flake8Args": [
+    "--max-line-length=88",
+    "--ignore=E203,W503,W504"
+],
+  "python.formatting.provider": "black",
+  "editor.formatOnSave": true,
+  "python.linting.lintOnSave": true,
+  "python.formatting.blackArgs": ["--skip-string-normalization"],
+  "python.linting.enabled": true
 }

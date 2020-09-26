@@ -1,34 +1,38 @@
 import os
 import sys
 import pytest
+
 # import time
-sys.path.insert(0, os.path.abspath(
-    os.path.join(os.path.dirname(__file__), '..')))
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
 
 @pytest.fixture
 def grid_creation():
     from src.grid import Grid
+
     grid = Grid()
 
     return grid
 
 
-@pytest.mark.parametrize('use', [
-    {
-        'CRBE': True,
-        'Last Digit': True,
-        'Naked Single': True,
-        'Hidden Single': True,
-        'Naked Pair': True,
-        'Hidden Pair': True,
-        'Naked Triple': True,
-        'Hidden Triple': True,
-        'Locked Candidates Pointing': True,
-        'Locked Candidates Claiming': True,
-        'X-Wing': True
-    }
-])
+@pytest.mark.parametrize(
+    'use',
+    [
+        {
+            'CRBE': True,
+            'Last Digit': True,
+            'Naked Single': True,
+            'Hidden Single': True,
+            'Naked Pair': True,
+            'Hidden Pair': True,
+            'Naked Triple': False,
+            'Hidden Triple': False,
+            'Locked Candidates Pointing': True,
+            'Locked Candidates Claiming': True,
+            'X-Wing': True,
+        }
+    ],
+)
 # (),
 # ('000000000'
 #  + '000000000'
@@ -80,25 +84,25 @@ def test_create(use, grid_creation):  # sequence, grid_creation):
     count = 0
     # grid.set_sequence('0'*81)
     # grid.create()
-    # while count < 1:
+    # while count < 10:
     while grid.techniques['X-Wing'] is False:
         # while grid.count_digits() > 25:
-        grid.set_sequence('0'*81)
+        grid.set_sequence('0' * 81)
         # grid.show_grid()
         # print(grid.create())
         grid.create()
         # assert grid.sum_check() is True
         count += 1
         grid.create_problem(0)
-        # grid.show_grid()
-    # print(grid.answer)
-    # print(count)
-    # elapsed_time = time.time() - start
-    # print("elapsed_time:{0}".format(elapsed_time) + "[sec]")
     grid.show_grid()
     print(f'Hints: {grid.count_digits()}')
     for key, value in grid.techniques.items():
         print(f'{value}: {key}')
+    # print(grid.answer)
+    # print(count)
+    # elapsed_time = time.time() - start
+    # print("elapsed_time:{0}".format(elapsed_time) + "[sec]")
+    # grid.show_grid()
 
 
 if __name__ == '__main__':
