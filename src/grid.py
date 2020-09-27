@@ -126,8 +126,15 @@ class Grid:
             # ジグソーシャッフル
             for _ in [1] * 35:
                 gr.shuffle()
-            self.jigsaws = gr.group.copy()
+            self.jigsaws = gr.members.copy()
             self.houses = self.rows + self.columns + self.jigsaws
+            self.peers_jigsaw = [self.jigsaws[gr.group[i]] for i in range(81)]
+            self.peers = [
+                {*i, *j, *k}
+                for (i, j, k) in zip(
+                    self.peers_jigsaw, self.peers_column, self.peers_row
+                )
+            ]
 
     def unfilled_in_house(self, house_index, candidates=0x1FF):
         """指定したハウス内の指定した候補を持つマスのインデックス配列を返す"""
@@ -609,9 +616,14 @@ class Grid:
 
     def erase_peers_candidates(self, cell_index, digit):
         """指定マスと同一ハウスにあるマスから指定の候補数字を消去する"""
-        for i in self.peers[cell_index]:
-            if (c := self.cells[i]).candidates != 0 and i != cell_index:
-                c.remove(digit)
+        if self.np_type in [0, 1]:
+            for i in self.peers[cell_index]:
+                if (c := self.cells[i]).candidates != 0 and i != cell_index:
+                    c.remove(digit)
+        elif self.np_type == 2:  # sum
+            pass
+        elif self.np_type == 3:  # jig
+            pass
 
     @property
     def sequence(self):
