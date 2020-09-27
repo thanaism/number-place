@@ -2,7 +2,6 @@ import os
 import sys
 import pytest
 
-# import time
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
 
@@ -10,99 +9,34 @@ sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')
 def grid_creation():
     from src.grid import Grid
 
-    grid = Grid()
-
+    # grid = Grid(np_type=3)
+    grid = Grid(np_type=2)
+    # grid = Grid(np_type=1)
+    # grid = Grid(np_type=0)
     return grid
 
 
-@pytest.mark.parametrize(
-    'use',
-    [
-        {
-            'CRBE': True,
-            'Last Digit': True,
-            'Naked Single': True,
-            'Hidden Single': True,
-            'Naked Pair': True,
-            'Hidden Pair': True,
-            'Naked Triple': False,
-            'Hidden Triple': False,
-            'Locked Candidates Pointing': True,
-            'Locked Candidates Claiming': True,
-            'X-Wing': True,
-        }
-    ],
-)
-# (),
-# ('000000000'
-#  + '000000000'
-#  + '000000000'
-#  + '000000000'
-#  + '000000000'
-#  + '000000000'
-#  + '000000000'
-#  + '000000000'
-#  + '000000000')
-# ('000380094'
-#  + '804270000'
-#  + '935640872'
-#  + '169000380'
-#  + '000813000'
-#  + '048000721'
-#  + '280037569'
-#  + '000068207'
-#  + '690052008'),
-# (''
-#  + '013'+'000'+'000'
-#  + '000'+'008'+'006'
-#  + '070'+'000'+'001'
-#  + '060'+'000'+'490'
-#  + '000'+'070'+'800'
-#  + '007'+'060'+'200'
-#  + '200'+'096'+'308'
-#  + '040'+'020'+'600'
-#  + '700'+'400'+'000'),
-# (''
-#  + '490'+'083'+'700'
-#  + '100'+'000'+'000'
-#  + '002'+'400'+'600'
-#  + '030'+'500'+'900'
-#  + '000'+'100'+'000'
-#  + '920'+'060'+'001'
-#  + '800'+'000'+'000'
-#  + '000'+'000'+'080'
-#  + '045'+'000'+'023')
-# ])
-def test_create(use, grid_creation):  # sequence, grid_creation):
+# @pytest.mark.parametrize([])
+def test_create(grid_creation):
+    from src.pysimplegui import show_on_gui
+
     print('\n')
     grid = grid_creation
-    for key, value in use.items():
-        grid.allow_using[key] = value
-    # print(grid.can_solve)
-    # grid.show_grid()
-    # start = time.time()
     count = 0
-    # grid.set_sequence('0'*81)
-    # grid.create()
-    # while count < 10:
-    while grid.techniques['X-Wing'] is False:
-        # while grid.count_digits() > 25:
+    # while grid.techniques['Hidden Pair'] is False:
+    # while grid.count_digits() > 25:
+    while count < 1:
         grid.set_sequence('0' * 81)
-        # grid.show_grid()
-        # print(grid.create())
-        grid.create()
-        # assert grid.sum_check() is True
+        assert grid.create() is True
+        # show_on_gui([*map(str, grid.group)], grid.lines, False)
+        assert grid.sum_check() is True
         count += 1
         grid.create_problem(0)
-    grid.show_grid()
+    # show_on_gui([' ' if s == '0' else s for s in grid.answer], grid.lines, False)
+    show_on_gui([' ' if s == '0' else s for s in grid.sequence], grid.lines, False)
     print(f'Hints: {grid.count_digits()}')
     for key, value in grid.techniques.items():
-        print(f'{value}: {key}')
-    # print(grid.answer)
-    # print(count)
-    # elapsed_time = time.time() - start
-    # print("elapsed_time:{0}".format(elapsed_time) + "[sec]")
-    # grid.show_grid()
+        print(f'{value*1}: {key}')
 
 
 if __name__ == '__main__':

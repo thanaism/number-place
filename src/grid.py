@@ -1,5 +1,7 @@
 from .cell import Cell
 from .group import Group
+
+# from .pysimplegui import show_on_gui
 from datetime import datetime
 import random
 import itertools
@@ -66,6 +68,12 @@ class Grid:
         difficulty : int
         type : int
         cells : list(Cell)
+
+        Notes
+        -----
+        ジグソーはBOXをJIGSAWに置換するため、BOXの絡むLocked Candidatesの使用を不許可にする
+        その他の特殊ナンプレはサムグループ以外はHOUSEの要素数が9固定なので解法の使用は基本的に可
+        そのため、サムナンプレではPEERからの候補数字を削除するときに追加条件を付与する
         """
         self.creation_datetime = f'{datetime.now():%m%d%H%M%S%f}'
         self.difficulty = difficulty
@@ -86,12 +94,21 @@ class Grid:
             'X-Wing': False,
         }
         self.allow_using = copy.deepcopy(self.techniques)
+        for i in self.allow_using.keys():
+            self.allow_using[i] = True
         self.houses = self.rows + self.columns + self.boxes
         self.peers = [
             {*i, *j, *k}
             for (i, j, k) in zip(self.peers_box, self.peers_column, self.peers_row)
         ]
-        if np_type == 1:
+        gr = Group()
+        if self.type == 0:
+            self.lines = gr.show_lines()
+            self.group = gr.group.copy()
+
+        if self.type == 1:
+            self.lines = gr.show_lines()
+            self.group = gr.group.copy()
             diagonal1 = [i for i in range(81) if i % 10 == 0]
             diagonal2 = [i for i in range(81) if i % 8 == 0 and i != 0 and i != 80]
             self.diagonals = [diagonal1, diagonal2]
@@ -116,25 +133,43 @@ class Grid:
                     peers_diagonal2,
                 )
             ]
-        if np_type == 2:
-            gr = Group()
+        if self.type == 2:
+            # gr = Group()
             # サムグループの上限変更は要望あれば
             gr.get_new_random_group(2, 5)
+            self.lines = gr.show_lines()
             self.group = gr.group.copy()
-        if np_type == 3:
-            gr = Group()
+            self.sums = gr.members.copy()
+        if self.type == 3:
+            for key in ['Locked Candidates Pointing', 'Locked Candidates Claiming']:
+                self.allow_using[key] = False
+            # gr = Group()
             # ジグソーシャッフル
             for _ in [1] * 35:
                 gr.shuffle()
             self.jigsaws = gr.members.copy()
+            self.group = gr.group.copy()
+            print('\n' + 'jigsaws;')
+            for i in self.jigsaws:
+                print(i)
+            self.lines = gr.show_lines()
             self.houses = self.rows + self.columns + self.jigsaws
+            print('\n' + 'houses;')
+            for i in self.houses:
+                print(i)
+            # print(self.houses)
             self.peers_jigsaw = [self.jigsaws[gr.group[i]] for i in range(81)]
+            # print(self.peers_jigsaw)
             self.peers = [
                 {*i, *j, *k}
                 for (i, j, k) in zip(
                     self.peers_jigsaw, self.peers_column, self.peers_row
                 )
             ]
+            print('\n' + 'peers;')
+            for i in self.peers:
+                print(i)
+            # print(self.peers)
 
     def unfilled_in_house(self, house_index, candidates=0x1FF):
         """指定したハウス内の指定した候補を持つマスのインデックス配列を返す"""
@@ -153,6 +188,8 @@ class Grid:
 
         def create_ans(index):
             """解答の盤面を生成する再帰関数"""
+            if self.count > self.max_rec_count:
+                return None
             for i in range(index, 81):
                 if self.cells[i].digit == 0:
                     index = i
@@ -167,16 +204,30 @@ class Grid:
                     if index + 1 == 81:
                         return True
                     else:
-                        if create_ans(index + 1):
+                        self.count += 1
+                        res = create_ans(index + 1)
+                        if res is True:
                             return True
-                        self.cells[index].digit = 0
+                        elif res is None:
+                            break
+                        else:
+                            self.cells[index].digit = 0
             return False
 
-        if create_ans(0):
-            self.answer = self.sequence
-            return True
-        else:
-            return False
+        self.max_rec_count = 1000
+        self.total_count = 0
+        self.count = 0
+        while True:
+            if create_ans(0):
+                self.answer = self.sequence
+                self.total_count += self.count
+                print(f'count: {self.count}, total_count: {self.total_count}')
+                break
+            else:
+                self.set_sequence('0' * 81)
+                self.total_count += self.count
+                self.count = 0
+        return True
 
     def create_problem(self, givens_count):
         """問題を作成する"""
@@ -190,8 +241,12 @@ class Grid:
             i = r81[index]
             if self.cells[i] != 0:
                 buf, self.cells[i].digit = self.cells[i].digit, 0
+                if self.type == 2:  # sum
+                    buf_reversed, self.cells[80 - i].digit = self.cells[80 - i].digit, 0
                 if not self.can_solve:
                     self.cells[i].digit = buf
+                    if self.type == 2:  # sum
+                        self.cells[80 - i].digit = buf_reversed
             erase_digit(index + 1)
 
         erase_digit(0)
@@ -553,12 +608,13 @@ class Grid:
     def can_solve(self):
         """盤面が仮定法なしで解けるかを返す"""
         copied = copy.deepcopy(self)
+        if copied.allow_using['CRBE']:
+            if copied.crbe():
+                copied.techniques['CRBE'] = True
+                # continue
         # 空白セルが減らなくなるまで繰り返す
         while copied.count_blank() > 0:
             blank_before = copied.count_blank()
-            # if copied.crbe():
-            # copied.techniques['CRBE'] = True
-            # continue
             if copied.allow_using['Last Digit']:
                 if copied.last_digit():
                     copied.techniques['Last Digit'] = True
@@ -606,7 +662,7 @@ class Grid:
                 break
         if copied.count_blank() == 0:  # and copied.sequence == copied.answer:
             # copied.show_grid()
-            self.techniques = copied.techniques
+            self.techniques = copied.techniques.copy()
             # print('<---------- solved ---------->')
             # copied.show_grid()
             # del copied
@@ -616,14 +672,44 @@ class Grid:
 
     def erase_peers_candidates(self, cell_index, digit):
         """指定マスと同一ハウスにあるマスから指定の候補数字を消去する"""
-        if self.np_type in [0, 1]:
-            for i in self.peers[cell_index]:
-                if (c := self.cells[i]).candidates != 0 and i != cell_index:
-                    c.remove(digit)
-        elif self.np_type == 2:  # sum
-            pass
-        elif self.np_type == 3:  # jig
-            pass
+        for i in self.peers[cell_index]:
+            if (c := self.cells[i]).candidates != 0 and i != cell_index:
+                c.remove(digit)
+        if self.type == 2:  # sum
+            sum_cell_count = len(self.sums[self.group[cell_index]])
+            # print(f'sum_member: {self.sums[self.group[cell_index]]}')
+            # print(f'sum_cell_count: {sum_cell_count}')
+            sum_value = sum(
+                [int(self.answer[i]) for i in self.sums[self.group[cell_index]]]
+            )
+            for i in self.sums[self.group[cell_index]]:
+                fixed_digit = self.cells[i].digit
+                if fixed_digit > 0:
+                    sum_cell_count -= 1
+                    sum_value -= fixed_digit
+            # print(f'sum_value: {sum_value}')
+            usable_digits = set()
+            for digits in itertools.combinations(range(1, 10), sum_cell_count):
+                if sum(digits) == sum_value:
+                    usable_digits |= {*digits}
+            # print(f'usable_digits: {usable_digits}')
+            # assert len(usable_digits) != 0
+            candidates_in_sum = set()
+            bit = 0
+            for i in self.sums[self.group[cell_index]]:
+                bit |= self.cells[i].candidates
+            for shift in range(9):
+                if bit & 1 << shift:
+                    candidates_in_sum |= {shift + 1}
+            # print(f'candidates in sum: {candidates_in_sum}')
+            removables = candidates_in_sum - usable_digits
+            # print(f'removables: {removables}')
+            bit_remove = 0
+            for i in removables:
+                bit_remove |= 1 << (i - 1)
+            # print(f'bit remove: {bit_remove:09b}')
+            for i in self.sums[self.group[cell_index]]:
+                self.cells[i].candidates &= ~bit_remove
 
     @property
     def sequence(self):
@@ -656,6 +742,11 @@ class Grid:
         for i in self.peers[index]:
             if self.cells[i].digit == digit:
                 return False  # 1つでも該当ケースがあればNG
+        # サムナンプレの場合はサムグループ内も重複不可
+        if self.type == 2:
+            for i in self.sums[self.group[index]]:
+                if self.cells[i].digit == digit:
+                    return False  # 1つでも該当ケースがあればNG
         return True
 
     def show_grid(self, grid=None):
@@ -771,6 +862,7 @@ class Grid:
         print('+----------+----------+----------+')
 
     def crbe(self):
+        count = 0
         self.last_digit()
         # skipフラグ
         skip = [False] * 10
@@ -834,6 +926,7 @@ class Grid:
                     for k, v in can_exist.items():
                         if v:
                             self.cells[k].digit = target
+                            count += 1
                             # digit_count[target] += 1
                             # print(f'CRBE -> {target} to {k}')
                             # 本来はCRBEがすべて終了するまでを1つのメソッドにしたい
@@ -843,6 +936,7 @@ class Grid:
                     for i in range(10):
                         skip[i] = False
             skip[target] = True
+        return count
 
     def digit_exists_in_house(self, digit, house_index):
         for i in self.houses[house_index]:
