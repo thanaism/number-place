@@ -1,7 +1,7 @@
 import PySimpleGUI as sg
 
 
-def show_on_gui(digits, lines, draw_box_line):
+def show_on_gui(digits, lines, draw_box_line, sums=[0] * 81):
     """
     GUIでGridを表示する
 
@@ -12,6 +12,37 @@ def show_on_gui(digits, lines, draw_box_line):
     lines : str
         81文字の16進数
     """
+    window = get_grid_window(digits, lines, draw_box_line, sums)
+
+    # graph = window['_GRAPH_']
+    # graph.draw_line((0, 0), (100, 100))
+    # for i in range(81):
+    #     graph.delete_figure(cell[i])
+    while True:  # Event Loop
+        event, values = window.Read()
+        # print(event, values)
+        # position = values['_GRAPH_']
+        # if event == '_GRAPH_':
+        #     row_clicked = position[1] // CELL_SIZE
+        #     col_clicked = position[0] // CELL_SIZE
+        #     print(f'cell clicked: {row_clicked, col_clicked}')
+        #     graph.delete_figure(cell[row_clicked * 9 + col_clicked])
+        # if event == 'Refresh':
+        #     for i in range(81):
+        #         graph.delete_figure(cell[i])
+        #     for row in range(9):
+        #         for col in range(9):
+        #             cell[row * 9 + col] = graph.DrawText(
+        #                 text='A',
+        #                 location=(col * CELL_SIZE + 30, row * CELL_SIZE + 30),
+        #                 font='Courier 40',
+        #             )
+        if event is None or event == 'Exit':
+            break
+    window.Close()
+
+
+def get_grid_window(digits, lines, draw_box_line, sums):
     margin = 4
     CELL_SIZE = 50
     graph = sg.Graph(
@@ -29,6 +60,8 @@ def show_on_gui(digits, lines, draw_box_line):
         [graph],
         [btn('Exit')],  # btn('Refresh')],
     ]
+    window = sg.Window("Grid's information", layout, finalize=True)
+    # g = window.FindElement("_GRAPH_")
 
     def linedraw(index, hex):
         for bit in range(4):
@@ -81,8 +114,6 @@ def show_on_gui(digits, lines, draw_box_line):
                     color=line_color,
                 )
 
-    window = sg.Window("Grid's information", layout, finalize=True)
-    # g = window.FindElement("_GRAPH_")
     label = [None] * 81
     cell = [None] * 81
     for row in range(9):
@@ -100,7 +131,7 @@ def show_on_gui(digits, lines, draw_box_line):
                 # fill_color='white',
             )
             graph.DrawText(
-                text=str(index),
+                text='' if sums[index] == 0 else str(sums[index]),
                 location=(
                     col * CELL_SIZE + 12 + margin / 2,
                     row * CELL_SIZE + 10 + margin / 2,
@@ -130,31 +161,8 @@ def show_on_gui(digits, lines, draw_box_line):
             line_width=2,
         )
         graph.draw_rectangle(
-            (0, CELL_SIZE * 3),
+            (0 + margin / 2, CELL_SIZE * 3 + margin / 2),
             (CELL_SIZE * 9 + margin / 2, CELL_SIZE * 6 + margin / 2),
             line_width=2,
         )
-
-    while True:  # Event Loop
-        event, values = window.Read()
-        # print(event, values)
-        # position = values['_GRAPH_']
-        # if event == '_GRAPH_':
-        #     row_clicked = position[1] // CELL_SIZE
-        #     col_clicked = position[0] // CELL_SIZE
-        #     print(f'cell clicked: {row_clicked, col_clicked}')
-        #     graph.delete_figure(cell[row_clicked * 9 + col_clicked])
-        # if event == 'Refresh':
-        #     for i in range(81):
-        #         graph.delete_figure(cell[i])
-        #     for row in range(9):
-        #         for col in range(9):
-        #             cell[row * 9 + col] = graph.DrawText(
-        #                 text='A',
-        #                 location=(col * CELL_SIZE + 30, row * CELL_SIZE + 30),
-        #                 font='Courier 40',
-        #             )
-        if event is None or event == 'Exit':
-            break
-
-    window.Close()
+    return window

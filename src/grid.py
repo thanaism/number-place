@@ -1,5 +1,5 @@
-from .cell import Cell
-from .group import Group
+from cell import Cell
+from group import Group
 
 # from .pysimplegui import show_on_gui
 from datetime import datetime
@@ -60,7 +60,7 @@ class Grid:
         [i // 3 * 9 + j % 9 // 3 * 3 + i % 3 for i in range(27)] for j in range(81)
     ]
 
-    def __init__(self, difficulty=0, np_type=0):
+    def __init__(self, np_type=0, max_rec_count=1000, min_gr_size=2, max_gr_size=5):
         """
         Attributes
         ----------
@@ -75,11 +75,15 @@ class Grid:
         その他の特殊ナンプレはサムグループ以外はHOUSEの要素数が9固定なので解法の使用は基本的に可
         そのため、サムナンプレではPEERからの候補数字を削除するときに追加条件を付与する
         """
-        self.creation_datetime = f'{datetime.now():%m%d%H%M%S%f}'
-        self.difficulty = difficulty
+        # 解答生成メソッドの再帰上限
+        self.max_rec_count = max_rec_count
+        self.creation_datetime = f'{datetime.now():%y%m%d_%H%M%S_%f}'
+        self.difficulty = None
         self.type = np_type  # 0:normal,1:diagonal,2:sum,3:jig
+        self.type_str = ('NOR', 'DIA', 'SUM', 'JIG')[self.type]
         self.cells = [Cell(i, 0) for i in range(81)]
         self.answer = None
+        self.sums = None
         self.techniques = {
             'CRBE': False,
             'Last Digit': False,
@@ -112,7 +116,7 @@ class Grid:
             diagonal1 = [i for i in range(81) if i % 10 == 0]
             diagonal2 = [i for i in range(81) if i % 8 == 0 and i != 0 and i != 80]
             self.diagonals = [diagonal1, diagonal2]
-            print(f'diagonals: {self.diagonals}')
+            # print(f'diagonals: {self.diagonals}')
             peers_diagonal1 = [
                 [i * 10 for i in range(9)] if j % 10 == 0 else [] for j in range(81)
             ]
@@ -136,40 +140,76 @@ class Grid:
         if self.type == 2:
             # gr = Group()
             # サムグループの上限変更は要望あれば
-            gr.get_new_random_group(2, 5)
+            gr.get_new_random_group(min_gr_size, max_gr_size)
             self.lines = gr.show_lines()
             self.group = gr.group.copy()
             self.sums = gr.members.copy()
         if self.type == 3:
-            for key in ['Locked Candidates Pointing', 'Locked Candidates Claiming']:
+            for key in [
+                'CRBE',
+                'Locked Candidates Pointing',
+                'Locked Candidates Claiming',
+            ]:
                 self.allow_using[key] = False
-            # gr = Group()
-            # ジグソーシャッフル
-            for _ in [1] * 35:
-                gr.shuffle()
+            self.init_jig()
+
+    def set_lines(self, lines):
+        gr = Group()
+        self.lines = lines
+        gr.set_group_by_lines(lines)
+        if self.type in [0, 1]:
+            self.group = gr.group.copy()
+        elif self.type == 2:
+            self.group = gr.group.copy()
+            self.sums = gr.members.copy()
+        elif self.type == 3:
             self.jigsaws = gr.members.copy()
             self.group = gr.group.copy()
-            print('\n' + 'jigsaws;')
-            for i in self.jigsaws:
-                print(i)
-            self.lines = gr.show_lines()
             self.houses = self.rows + self.columns + self.jigsaws
-            print('\n' + 'houses;')
-            for i in self.houses:
-                print(i)
-            # print(self.houses)
             self.peers_jigsaw = [self.jigsaws[gr.group[i]] for i in range(81)]
-            # print(self.peers_jigsaw)
             self.peers = [
                 {*i, *j, *k}
                 for (i, j, k) in zip(
                     self.peers_jigsaw, self.peers_column, self.peers_row
                 )
             ]
-            print('\n' + 'peers;')
-            for i in self.peers:
-                print(i)
-            # print(self.peers)
+
+    def init_jig(self):
+        gr = Group()
+        # ジグソーシャッフル
+        for _ in [1] * 20:
+            gr.shuffle()
+        self.jigsaws = gr.members.copy()
+        self.group = gr.group.copy()
+        self.lines = gr.show_lines()
+        self.houses = self.rows + self.columns + self.jigsaws
+        self.peers_jigsaw = [self.jigsaws[gr.group[i]] for i in range(81)]
+        self.peers = [
+            {*i, *j, *k}
+            for (i, j, k) in zip(self.peers_jigsaw, self.peers_column, self.peers_row)
+        ]
+
+    @property
+    def sum_symbol(self):
+        unchecked = [True] * 81
+        res = [0] * 81
+        for index in range(81):
+            if unchecked[index]:
+                sum_value = sum(
+                    [int(self.answer[i]) for i in self.sums[self.group[index]]]
+                )
+                res[index] = sum_value
+                for i in self.sums[self.group[index]]:
+                    unchecked[i] = False
+        return res
+
+    @property
+    def used_techniques(self):
+        bit = 0
+        for i, v in enumerate(self.techniques.values()):
+            if v:
+                bit |= 1 << i
+        return f'{bit:011b}'
 
     def unfilled_in_house(self, house_index, candidates=0x1FF):
         """指定したハウス内の指定した候補を持つマスのインデックス配列を返す"""
@@ -214,18 +254,19 @@ class Grid:
                             self.cells[index].digit = 0
             return False
 
-        self.max_rec_count = 1000
-        self.total_count = 0
+        # self.total_count = 0
         self.count = 0
         while True:
             if create_ans(0):
                 self.answer = self.sequence
-                self.total_count += self.count
-                print(f'count: {self.count}, total_count: {self.total_count}')
+                # self.total_count += self.count
+                # print(f'count: {self.count}, total_count: {self.total_count}')
                 break
             else:
                 self.set_sequence('0' * 81)
-                self.total_count += self.count
+                if self.type == 3:  # jig
+                    self.init_jig()
+                # self.total_count += self.count
                 self.count = 0
         return True
 
@@ -250,6 +291,16 @@ class Grid:
             erase_digit(index + 1)
 
         erase_digit(0)
+        self.problem = ''.join(map(str, (self.cells[i].digit for i in range(81))))
+        bit_tech = eval('0b' + self.used_techniques)
+        if bit_tech >= 1 << 6:
+            self.difficulty = 'MAS'
+        elif bit_tech >= 1 << 4:
+            self.difficulty = 'EXP'
+        elif bit_tech >= 1 << 3:
+            self.difficulty = 'REG'
+        elif bit_tech >= 1 << 0:
+            self.difficulty = 'NOV'
 
     def last_digit(self):
         """
@@ -778,43 +829,43 @@ class Grid:
         """1-81のランダム順列をリターン"""
         return random.sample([*range(81)], 81)
 
-    @staticmethod
-    def rotate(grid):
-        """
-        gridを入力すると回転・反転の全8パターンをリストにしてリターン
+    # @staticmethod
+    # def rotate(grid):
+    #     """
+    #     gridを入力すると回転・反転の全8パターンをリストにしてリターン
 
-        parameters
-        ----------
-        grid : list(int) or str
-          整数配列、シーケンス文字列どちらでも可。
+    #     parameters
+    #     ----------
+    #     grid : list(int) or str
+    #       整数配列、シーケンス文字列どちらでも可。
 
-        Returns
-        -------
-        grids : list(list(int))
+    #     Returns
+    #     -------
+    #     grids : list(list(int))
 
-        Notes
-        -----
-        90度ごとの回転のため、{Row, Column ,8-Row, 8-Column}の組み合わせで得られる8パターンとなる。
+    #     Notes
+    #     -----
+    #     90度ごとの回転のため、{Row, Column ,8-Row, 8-Column}の組み合わせで得られる8パターンとなる。
 
-        """
-        if type(grid) is str:
-            grid = [int(i) for i in grid]
+    #     """
+    #     if type(grid) is str:
+    #         grid = [int(i) for i in grid]
 
-        def get_other_pattern_index():
-            pattern = [(i // 9, i % 9, 8 - i // 9, 8 - i % 9) for i in range(81)]
-            indexes = []
-            pairs = [
-                (i, j) for i, j in itertools.permutations(range(4), 2) if (i ^ j) & 1
-            ]
-            for row, column in pairs:  # itertools.combinations(range(4), 2):
-                indexes += ([grid[i[row] * 9 + i[column]] for i in pattern],)
-            return indexes
+    #     def get_other_pattern_index():
+    #         pattern = [(i // 9, i % 9, 8 - i // 9, 8 - i % 9) for i in range(81)]
+    #         indexes = []
+    #         pairs = [
+    #             (i, j) for i, j in itertools.permutations(range(4), 2) if (i ^ j) & 1
+    #         ]
+    #         for row, column in pairs:  # itertools.combinations(range(4), 2):
+    #             indexes += ([grid[i[row] * 9 + i[column]] for i in pattern],)
+    #         return indexes
 
-        grids = []
-        for i in get_other_pattern_index():
-            grids += (i,)
+    #     grids = []
+    #     for i in get_other_pattern_index():
+    #         grids += (i,)
 
-        return grids
+    #     return grids
 
     @staticmethod
     def show(*digits):
@@ -860,6 +911,15 @@ class Grid:
                 else:
                     print(f'{i:>2d} ', end='')
         print('+----------+----------+----------+')
+
+    # def show_grid_with_great_lines(self):
+    #     for i in range(81):
+    #         hex=eval('0x' + self.lines[i])
+    #         for shift in range(4):
+    #             if hex & 1 << bit:
+    #                 row = i // 9
+    #                 col = i % 9
+    #                 if shift == 0:
 
     def crbe(self):
         count = 0
