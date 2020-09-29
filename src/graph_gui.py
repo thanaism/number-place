@@ -1,6 +1,7 @@
 import PySimpleGUI as sg
 import edit_csv
 import grid
+import pyperclip
 
 
 class GraphGUI:
@@ -149,6 +150,13 @@ num_gen = sg.Frame('生成数（作成）', [[
     sg.Radio('5000', 3),
     sg.Radio('10000', 3),
 ]])
+hint_limit = sg.Frame('ヒント数下限（作成）', [[
+    sg.Radio('MIN', 4, default=True),
+    sg.Radio('25', 4),
+    sg.Radio('30', 4),
+    sg.Radio('40', 4),
+    sg.Radio('50', 4),
+]])
 prev_next_btns = [[
     sg.Button('前へ', size=(15, 1.5), key='_PREV_'),
     sg.Button('次へ', size=(15, 1.5), key='_NEXT_'),
@@ -158,18 +166,23 @@ read_make_btns = [[
     sg.Button('作成', size=(10, 1.5), key='_MAKE_'),
 ]]
 
+
+def raised_txt(strings):
+    return sg.Text(strings, size=(15, 1), background_color='#dddddd', relief='raised')
+
+
 techs = [None] * 11
-techs[0] = sg.Text('CRBE', size=(15, 1), background_color='#dddddd', relief='raised')
-techs[1] = sg.Text('Last Digit', size=(15, 1), background_color='#dddddd', relief='raised')
-techs[2] = sg.Text('Naked Single', size=(15, 1), background_color='#dddddd', relief='raised')
-techs[3] = sg.Text('Hid Single', size=(15, 1), background_color='#dddddd', relief='raised')
-techs[4] = sg.Text('Naked Pair', size=(15, 1), background_color='#dddddd', relief='raised')
-techs[5] = sg.Text('Hid Pair', size=(15, 1), background_color='#dddddd', relief='raised')
-techs[6] = sg.Text('Naked Triple', size=(15, 1), background_color='#dddddd', relief='raised')
-techs[7] = sg.Text('Hid Triple', size=(15, 1), background_color='#dddddd', relief='raised')
-techs[8] = sg.Text('LC Pointing', size=(15, 1), background_color='#dddddd', relief='raised')
-techs[9] = sg.Text('LC Claiming', size=(15, 1), background_color='#dddddd', relief='raised')
-techs[10] = sg.Text('X-Wing', size=(15, 1), background_color='#dddddd', relief='raised')
+techs[0] = raised_txt('CRBE')
+techs[1] = raised_txt('Last Digit')
+techs[2] = raised_txt('Naked Single')
+techs[3] = raised_txt('Hid Single')
+techs[4] = raised_txt('Naked Pair')
+techs[5] = raised_txt('Hid Pair')
+techs[6] = raised_txt('Naked Triple')
+techs[7] = raised_txt('Hid Triple')
+techs[8] = raised_txt('LC Pointing')
+techs[9] = raised_txt('LC Claiming')
+techs[10] = raised_txt('X-Wing')
 
 tech = [
     [sg.Column([[
@@ -203,14 +216,16 @@ func_btns = [
 
 layout = [
     [sg.Column([[
-        sg.Column([[diff], [types], [num_gen], ]),
+        sg.Column([[diff], [types], [num_gen], [hint_limit]]),
         sg.Frame('テクニック', tech)
     ], ])],
     [sg.Column([[
         graph,
         sg.Column([
             [sg.Frame('閲覧', [[sg.Text('----- / -----', font=('', 20), key='_NOW_')]])],
-            [sg.Frame('便利ボタン', func_btns)]
+            [sg.Frame('便利ボタン', func_btns)],
+            [sg.Button('解答表示', size=(12, 1.5), key='_SHOW_')],
+            [sg.Button('問題表示', size=(12, 1.5), key='_BACK_')],
         ]),
     ]])],
     [sg.Column([[
@@ -234,7 +249,7 @@ read_flg = False
 data_length = 0
 
 
-def update(graph, gui, df, current_idx, tp_lock):
+def update(graph, gui, df, current_idx, tp_lock, is_prob=True):
     ans_set = df.loc[current_idx, 'answer']
     lines_set = df.loc[current_idx, 'lines']
     print(lines_set)
@@ -252,14 +267,37 @@ def update(graph, gui, df, current_idx, tp_lock):
     sums_set = (
         [''] * 81 if tp_lock != 2 else ['' if i == 0 else i for i in gr.sum_symbol]
     )
-    gui.update_graph(
-        window,
-        graph,
-        [str(i) if i != '0' else '' for i in prob_set],
-        lines_set,
-        sums_set,
-        True if tp_lock == 1 else False,
-    )
+    if is_prob:
+        gui.update_graph(
+            window,
+            graph,
+            [str(i) if i != '0' else '' for i in prob_set],
+            lines_set,
+            sums_set,
+            True if tp_lock == 1 else False,
+        )
+    else:
+        gui.update_graph(
+            window,
+            graph,
+            [str(i) for i in ans_set],
+            lines_set,
+            sums_set,
+            True if tp_lock == 1 else False,
+        )
+    return gr
+
+
+def copy_seq_to_clipboard(sequence):
+    ls = []
+    for i, v in enumerate(sequence):
+        if i == 80:
+            ls.append(str(v))
+        elif i % 9 == 8:
+            ls.append(str(v) + '\r\n')
+        else:
+            ls.append(str(v) + '\t')
+    pyperclip.copy(''.join(ls))
 
 
 while 1:
@@ -272,7 +310,10 @@ while 1:
         for i in range(9, 14):
             if value[i]:
                 sz = (10, 100, 1000, 5000, 10000)[i - 9]
-        msg, tmp_path = edit_csv.add_to_csv(tp, sz)
+        for i in range(14, 19):
+            if value[i]:
+                ht = (0, 25, 30, 40, 50)[i - 14]
+        msg, tmp_path = edit_csv.add_to_csv(tp, sz, ht)
         sg.popup('重複確認', msg)
 
     if event == '_READ_':
@@ -292,17 +333,30 @@ while 1:
             df = df.reset_index(drop=True)
             current_idx = 0
             window['_NOW_'].update(f'{current_idx+1} / {len(df)}')
-            update(graph, gui, df, current_idx, tp_lock)
+            gr = update(graph, gui, df, current_idx, tp_lock)
+    if event == '_SHOW_' and read_flg:
+        gr = update(graph, gui, df, current_idx, tp_lock, False)
+    if event == '_BACK_' and read_flg:
+        gr = update(graph, gui, df, current_idx, tp_lock, True)
     if event == '_PREV_' and read_flg:
         if current_idx > 0:
             current_idx -= 1
             window['_NOW_'].update(f'{current_idx+1} / {len(df)}')
-            update(graph, gui, df, current_idx, tp_lock)
+            gr = update(graph, gui, df, current_idx, tp_lock)
     if event == '_NEXT_' and read_flg:
         if current_idx < len(df) - 1:
             current_idx += 1
             window['_NOW_'].update(f'{current_idx+1} / {len(df)}')
-            update(graph, gui, df, current_idx, tp_lock)
+            gr = update(graph, gui, df, current_idx, tp_lock)
+    if event == '_ANS_' and read_flg:
+        copy_seq_to_clipboard(df.loc[current_idx, 'answer'])
+    if event == '_PRB_' and read_flg:
+        copy_seq_to_clipboard(df.loc[current_idx, 'problem'])
+    if event == '_SUM_' and read_flg:
+        sums = (
+            [''] * 81 if tp_lock != 2 else ['' if i == 0 else i for i in gr.sum_symbol]
+        )
+        copy_seq_to_clipboard(sums)
     if event in [None, '_END_']:
         break
 window.close()

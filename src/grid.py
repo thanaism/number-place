@@ -296,11 +296,14 @@ class Grid:
         if bit_tech >= 1 << 6:
             self.difficulty = 'MAS'
         elif bit_tech >= 1 << 4:
-            self.difficulty = 'EXP'
+            self.difficulty = 'PRO'
         elif bit_tech >= 1 << 3:
-            self.difficulty = 'REG'
+            self.difficulty = 'EXP'
         elif bit_tech >= 1 << 0:
-            self.difficulty = 'NOV'
+            if self.count_digits() < 35:
+                self.difficulty = 'REG'
+            else:
+                self.difficulty = 'NOV'
 
     def last_digit(self):
         """
