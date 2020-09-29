@@ -9,7 +9,7 @@ def mypath():
     import sys
     from pathlib import Path
 
-    return Path(sys.argv[0]) if hasattr(sys, "frozen") else Path(__file__).parent
+    return Path(sys.argv[0]).parent if hasattr(sys, "frozen") else Path(__file__).parent
 
 
 def get_add_df(problem_type, num_to_make, hints_limit, window):
@@ -114,6 +114,7 @@ def add_to_csv(problem_type=0, num_to_make=10, hints_limit=0, filename='np_data.
 
 
 def read_csv(tp, diff, filename='np_data.csv'):
+    # sg.popup(mypath() / filename)
     df_read = pd.read_csv(
         mypath() / filename,
         header=0,
