@@ -1,5 +1,6 @@
 # Excel
 *.xlsx
+*.csv
 
 # Tmporary file
 _.py
