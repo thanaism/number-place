@@ -299,10 +299,9 @@ def copy_seq_to_clipboard(sequence):
             ls.append(str(v) + '\t')
     pyperclip.copy(''.join(ls))
 
-
+df=False
 while 1:
     event, value = window.read()
-    print(event, value)
     if event == '_MAKE_':
         for i in range(5, 9):
             if value[i]:
@@ -313,7 +312,7 @@ while 1:
         for i in range(14, 19):
             if value[i]:
                 ht = (0, 25, 30, 40, 50)[i - 14]
-        msg, tmp_path = edit_csv.add_to_csv(tp, sz, ht)
+        msg = edit_csv.add_to_csv(tp, sz, ht)
         sg.popup('重複確認', msg)
 
     if event == '_READ_':
@@ -329,7 +328,6 @@ while 1:
             tp_lock = tp
             read_flg = True
             data_length = len(df)
-            print('data is found.')
             df = df.reset_index(drop=True)
             current_idx = 0
             window['_NOW_'].update(f'{current_idx+1} / {len(df)}')
