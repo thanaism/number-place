@@ -1,19 +1,19 @@
 import csv
 import pandas as pd
-import pytest
 import itertools
 import PySimpleGUI as sg
+import sys
+from pathlib import Path
+from grid import Grid
+from datetime import datetime
+import os
 
 
 def mypath():
-    import sys
-    from pathlib import Path
-
     return Path(sys.argv[0]).parent if hasattr(sys, "frozen") else Path(__file__).parent
 
 
 def get_add_df(problem_type, num_to_make, hints_limit, window):
-    from grid import Grid
 
     dict_list = []
     for i in range(num_to_make):
@@ -62,12 +62,10 @@ def get_progress_window(num):
         [sg.Text("生成中…", font=('Courier', 20))],
         [sg.ProgressBar(num * 2, orientation="h", size=(40, 40), key="progbar")],
     ]
-    return sg.Window("ナンプレメーカー", layout, no_titlebar=True)
+    return sg.Window("ナンプレメーカー", layout)#, no_titlebar=True)
 
 
 def add_to_csv(problem_type=0, num_to_make=10, hints_limit=0, filename='np_data.csv'):
-    from datetime import datetime
-    import os
 
     window = get_progress_window(num_to_make)
     window.read(timeout=0)
@@ -110,43 +108,29 @@ def add_to_csv(problem_type=0, num_to_make=10, hints_limit=0, filename='np_data.
         quoting=csv.QUOTE_ALL,
     )
     window.close()
-    return msg, tmp_path
+    return msg
 
 
 def read_csv(tp, diff, filename='np_data.csv'):
-    # sg.popup(mypath() / filename)
-    df_read = pd.read_csv(
-        mypath() / filename,
-        header=0,
-        encoding='utf-8',
-    )
-    df_type_groupby = df_read.groupby('type')
-    for key, _ in df_type_groupby:
-        if key == tp:
-            df_type_filtered = df_type_groupby.get_group(tp)
-            df_diff_groupby = df_type_filtered.groupby('difficulty')
-            for key_, _ in df_diff_groupby:
-                if key_ == diff:
-                    df_diff_filtered = df_diff_groupby.get_group(diff)
-                    df_diff_filtered.info()
-                    sg.popup(f'{len(df_diff_filtered)}件見つかりました')
-                    return df_diff_filtered
-            sg.popup_error('指定した難易度の問題はデータにありません')
-            return False
-    sg.popup_error('指定した種類の問題はデータにありません')
-    return False
-
-
-def test_csv():
-    # add_to_csv(0, 10, 0)
-    read_csv('NOR', 'EXP')
-    # for grid in rotate(
-    #     '583612749617489523492537816324968175851273964976145238238796451165824397749351682'
-    # ):
-    #     # print(''.join(map(str, grid)))
-    #     print(grid)
-
-
-if __name__ == '__main__':
-    parameter = '-sv'
-    pytest.main([parameter, __file__])
+    if os.path.isfile(mypath() / filename):
+        df_read = pd.read_csv(
+            mypath() / filename,
+            header=0,
+            encoding='utf-8',
+        )
+        df_type_groupby = df_read.groupby('type')
+        for key, _ in df_type_groupby:
+            if key == tp:
+                df_type_filtered = df_type_groupby.get_group(tp)
+                df_diff_groupby = df_type_filtered.groupby('difficulty')
+                for key_, _ in df_diff_groupby:
+                    if key_ == diff:
+                        df_diff_filtered = df_diff_groupby.get_group(diff)
+                        sg.popup(f'{len(df_diff_filtered)}件見つかりました')
+                        return df_diff_filtered
+                sg.popup_error('指定した難易度の問題はデータにありません')
+                return False
+        sg.popup_error('指定した種類の問題はデータにありません')
+        return False
+    else:
+        return False
