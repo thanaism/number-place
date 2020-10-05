@@ -62,7 +62,7 @@ def get_progress_window(num):
         [sg.Text("生成中…", font=('Courier', 20))],
         [sg.ProgressBar(num * 2, orientation="h", size=(40, 40), key="progbar")],
     ]
-    return sg.Window("ナンプレメーカー", layout, no_titlebar=True)
+    return sg.Window("ナンプレメーカー", layout)
 
 
 def add_to_csv(problem_type=0, num_to_make=10, hints_limit=0, filename='np_data.csv'):
