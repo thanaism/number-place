@@ -92,7 +92,7 @@ def add_to_csv(problem_type=0, num_to_make=10, hints_limit=0, filename='np_data.
 
         if 1:
             add_df.to_csv(
-                (tmp_path := mypath() / f'np_{datetime.now():%y%m%d_%H%M%S}.csv'),
+                mypath() / f'np_{datetime.now():%y%m%d_%H%M%S}.csv',
                 mode='w',
                 quoting=csv.QUOTE_ALL,
             )
