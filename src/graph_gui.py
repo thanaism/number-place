@@ -1,3 +1,8 @@
+"""メインのGUI画面の表示
+grid：読み込んだcsv情報から問題情報を復元する
+edit_csv：csvの作成と読込を担う
+"""
+
 import PySimpleGUI as sg
 import edit_csv
 import grid
@@ -5,10 +10,12 @@ import pyperclip
 
 
 class GraphGUI:
-    def __init__(self, cell_size=50, margin=4, thick_line_widh=4):
+    """メインGUIを統括するクラス"""
+
+    def __init__(self, cell_size=50, margin=4, thick_line_width=4):
         self.CS = cell_size
         self.MA = margin
-        self.THICK = thick_line_widh
+        self.THICK = thick_line_width
 
     def get_graph_area(self):
         graph = sg.Graph(
@@ -18,7 +25,6 @@ class GraphGUI:
             key="_GRAPH_",
             change_submits=True,
         )
-
         return graph
 
     def line_draw(self, graph, index, hex):
@@ -255,9 +261,10 @@ def update(graph, gui, df, current_idx, tp_lock, is_prob=True):
     print(lines_set)
     prob_set = df.loc[current_idx, 'problem']
     techniques = df.loc[current_idx, 'technique_used']
+    print(f'techniques: {techniques}')
     for i in range(len(techs)):
         techs[i].update(background_color='#dddddd', text_color='white')
-        if techniques & 1 << i:
+        if eval('0b' + str(techniques)) & 1 << i:
             techs[i].update(background_color='yellow', text_color='black')
     graph.Erase()
     gr = grid.Grid(np_type=tp_lock)
@@ -289,6 +296,11 @@ def update(graph, gui, df, current_idx, tp_lock, is_prob=True):
 
 
 def copy_seq_to_clipboard(sequence):
+    """要素数81の入力イテラブルを9x9で整形してクリップボードにコピー
+
+    Args:
+        sequence (int): 要素数81のイテラブル
+    """
     ls = []
     for i, v in enumerate(sequence):
         if i == 80:
@@ -313,7 +325,7 @@ while 1:
         for i in range(14, 19):
             if value[i]:
                 ht = (0, 25, 30, 40, 50)[i - 14]
-        msg, tmp_path = edit_csv.add_to_csv(tp, sz, ht)
+        msg = edit_csv.add_to_csv(tp, sz, ht)
         sg.popup('重複確認', msg)
 
     if event == '_READ_':
