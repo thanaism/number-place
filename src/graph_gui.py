@@ -258,10 +258,8 @@ data_length = 0
 def update(graph, gui, df, current_idx, tp_lock, is_prob=True):
     ans_set = df.loc[current_idx, 'answer']
     lines_set = df.loc[current_idx, 'lines']
-    print(lines_set)
     prob_set = df.loc[current_idx, 'problem']
     techniques = df.loc[current_idx, 'technique_used']
-    print(f'techniques: {techniques}')
     for i in range(len(techs)):
         techs[i].update(background_color='#dddddd', text_color='white')
         if eval('0b' + str(techniques)) & 1 << i:
@@ -314,7 +312,6 @@ def copy_seq_to_clipboard(sequence):
 
 while 1:
     event, value = window.read()
-    print(event, value)
     if event == '_MAKE_':
         for i in range(5, 9):
             if value[i]:
@@ -341,7 +338,6 @@ while 1:
             tp_lock = tp
             read_flg = True
             data_length = len(df)
-            print('data is found.')
             df = df.reset_index(drop=True)
             current_idx = 0
             window['_NOW_'].update(f'{current_idx+1} / {len(df)}')
