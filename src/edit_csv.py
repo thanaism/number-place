@@ -60,7 +60,7 @@ def rotate(grid):
 def get_progress_window(num):
     layout = [
         [sg.Text("生成中…", font=('Courier', 20))],
-        [sg.ProgressBar(num * 2, orientation="h", size=(40, 40), key="progbar")],
+        [sg.ProgressBar(num, orientation="h", size=(40, 40), key="progbar")],
     ]
     return sg.Window("ナンプレメーカー", layout)
 
@@ -83,12 +83,9 @@ def add_to_csv(problem_type=0, num_to_make=10, hints_limit=0, filename='np_data.
         for i, answer in enumerate(add_df['answer']):
             rotates = rotate(answer)
             for old_answer in old_df['answer']:
-                # print(f'old ans: {old_answer}')
-                # print(f'new ans: {answer}')
                 if old_answer in rotates:
                     count += 1
                     add_df = add_df.drop(index=i)
-            window["progbar"].update_bar(num_to_make + i + 1)
 
         if 1:
             add_df.to_csv(
