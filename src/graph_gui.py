@@ -177,6 +177,10 @@ def raised_txt(strings):
     return sg.Text(strings, size=(15, 1), background_color='#dddddd', relief='raised')
 
 
+def label_txt(strings):
+    return sg.Text(strings, size=(8, 1))
+
+
 techs = [None] * 11
 techs[0] = raised_txt('CRBE')
 techs[1] = raised_txt('Last Digit')
@@ -192,22 +196,27 @@ techs[10] = raised_txt('X-Wing')
 
 tech = [
     [sg.Column([[
+        label_txt('入門/初級'),
         techs[0],
-    ]])],
-    [sg.Column([[
         techs[1],
         techs[2],
+    ]])],
+    [sg.Column([[
+        label_txt('中級'),
         techs[3],
     ]])],
     [sg.Column([[
+        label_txt('上級'),
         techs[4],
         techs[5],
     ]])],
     [sg.Column([[
+        label_txt('難問'),
         techs[6],
         techs[7],
     ]])],
     [sg.Column([[
+        label_txt(''),
         techs[8],
         techs[9],
         techs[10],
@@ -228,6 +237,7 @@ layout = [
     [sg.Column([[
         graph,
         sg.Column([
+            [sg.Frame('ヒント数', [[sg.Text('----', font=('', 20), key='_HIN_')]])],
             [sg.Frame('閲覧', [[sg.Text('----- / -----', font=('', 20), key='_NOW_')]])],
             [sg.Frame('便利ボタン', func_btns)],
             [sg.Button('解答表示', size=(12, 2), key='_SHOW_')],
@@ -260,6 +270,7 @@ def update(graph, gui, df, current_idx, tp_lock, is_prob=True):
     lines_set = df.loc[current_idx, 'lines']
     prob_set = df.loc[current_idx, 'problem']
     techniques = df.loc[current_idx, 'technique_used']
+    window['_HIN_'].update(f'{df.loc[current_idx, "hints"]}')
     for i in range(len(techs)):
         techs[i].update(background_color='#dddddd', text_color='white')
         if eval('0b' + str(techniques)) & 1 << i:
