@@ -291,6 +291,7 @@ class Grid:
             erase_digit(index + 1)
 
         erase_digit(0)
+        # print(f'total_count: {sum(self.total_count)}, {self.total_count}')
         self.problem = ''.join(map(str, (self.cells[i].digit for i in range(81))))
         bit_tech = eval('0b' + self.used_techniques)
         level = 0
@@ -674,54 +675,66 @@ class Grid:
     @property
     def can_solve(self):
         """盤面が仮定法なしで解けるかを返す"""
+        total_count = [0] * 11
         copied = copy.deepcopy(self)
         if copied.allow_using['CRBE']:
-            if copied.crbe():
+            if (count := copied.crbe()) :
+                total_count[0] += count
                 copied.techniques['CRBE'] = True
                 # continue
         # 空白セルが減らなくなるまで繰り返す
         while copied.count_blank() > 0:
             blank_before = copied.count_blank()
             if copied.allow_using['Last Digit']:
-                if copied.last_digit():
+                if (count := copied.last_digit()) :
+                    total_count[1] += count
                     copied.techniques['Last Digit'] = True
                     continue
             if copied.allow_using['Naked Single']:
-                if copied.naked_single():
+                if (count := copied.naked_single()) :
+                    total_count[2] += count
                     copied.techniques['Naked Single'] = True
                     continue
             if copied.allow_using['Hidden Single']:
-                if copied.hidden_single():
+                if (count := copied.hidden_single()) :
+                    total_count[3] += count
                     copied.techniques['Hidden Single'] = True
                     continue
             if copied.allow_using['Hidden Pair']:
-                if copied.ls_hidden(2):
+                if (count := copied.ls_hidden(2)) :
+                    total_count[4] += count
                     copied.techniques['Hidden Pair'] = True
                     continue
             if copied.allow_using['Naked Pair']:
-                if copied.ls_naked(2):
+                if (count := copied.ls_naked(2)) :
+                    total_count[5] += count
                     copied.techniques['Naked Pair'] = True
                     continue
             # 一時的に追加
             if copied.allow_using['Hidden Triple']:
-                if copied.ls_hidden(3):
+                if (count := copied.ls_hidden(3)) :
+                    total_count[6] += count
                     copied.techniques['Hidden Triple'] = True
                     continue
             if copied.allow_using['Naked Triple']:
-                if copied.ls_naked(3):
+                if (count := copied.ls_naked(3)) :
+                    total_count[7] += count
                     copied.techniques['Naked Triple'] = True
                     continue
             # 追加ここまで
             if copied.allow_using['Locked Candidates Claiming']:
-                if copied.lc_claiming():
+                if (count := copied.lc_claiming()) :
+                    total_count[8] += count
                     copied.techniques['Locked Candidates Claiming'] = True
                     continue
             if copied.allow_using['Locked Candidates Pointing']:
-                if copied.lc_pointing():
+                if (count := copied.lc_pointing()) :
+                    total_count[9] += count
                     copied.techniques['Locked Candidates Pointing'] = True
                     continue
             if copied.allow_using['X-Wing']:
-                if copied.x_wing():
+                if (count := copied.x_wing()) :
+                    total_count[10] += count
                     copied.techniques['X-Wing'] = True
                     # print(copied.techniques['X-Wing'])
                     continue
@@ -730,6 +743,7 @@ class Grid:
         if copied.count_blank() == 0 and copied.sequence == copied.answer:
             # copied.show_grid()
             self.techniques = copied.techniques.copy()
+            self.total_count = total_count
             # print('<---------- solved ---------->')
             # copied.show_grid()
             # del copied
