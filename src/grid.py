@@ -293,17 +293,30 @@ class Grid:
         erase_digit(0)
         self.problem = ''.join(map(str, (self.cells[i].digit for i in range(81))))
         bit_tech = eval('0b' + self.used_techniques)
+        level = 0
+
+        if self.count_digits() < 25:
+            level = 4
+        elif self.count_digits() < 30:
+            level = 3
+        elif self.count_digits() < 35:
+            level = 2
+        elif self.count_digits() < 40:
+            level = 1
+        elif self.count_digits() >= 40:
+            level = 0
+
         if bit_tech >= 1 << 6:
-            self.difficulty = 'MAS'
+            level = max(level, 4)
         elif bit_tech >= 1 << 4:
-            self.difficulty = 'PRO'
+            level = max(level, 3)
         elif bit_tech >= 1 << 3:
-            self.difficulty = 'EXP'
+            level = max(level, 2)
         elif bit_tech >= 1 << 0:
-            if self.count_digits() < 35:
-                self.difficulty = 'REG'
-            else:
-                self.difficulty = 'NOV'
+            # 入門と初級の区分けはヒント数のみ
+            pass
+
+        self.difficulty = ('NOV', 'REG', 'EXP', 'PRO', 'MAS')[level]
 
     def last_digit(self):
         """
