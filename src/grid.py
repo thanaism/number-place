@@ -727,7 +727,7 @@ class Grid:
                     continue
             if copied.count_blank() == blank_before:
                 break
-        if copied.count_blank() == 0:  # and copied.sequence == copied.answer:
+        if copied.count_blank() == 0 and copied.sequence == copied.answer:
             # copied.show_grid()
             self.techniques = copied.techniques.copy()
             # print('<---------- solved ---------->')
