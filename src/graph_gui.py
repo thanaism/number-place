@@ -160,7 +160,9 @@ hint_limit = sg.Frame('ヒント数下限（作成）', [[
     sg.Radio('MIN', 4, default=True),
     sg.Radio('25', 4),
     sg.Radio('30', 4),
+    sg.Radio('35', 4),
     sg.Radio('40', 4),
+    sg.Radio('45', 4),
     sg.Radio('50', 4),
 ]])
 prev_next_btns = [[
@@ -330,9 +332,9 @@ while 1:
         for i in range(9, 14):
             if value[i]:
                 sz = (10, 100, 1000, 5000, 10000)[i - 9]
-        for i in range(14, 19):
+        for i in range(14, 21):
             if value[i]:
-                ht = (0, 25, 30, 40, 50)[i - 14]
+                ht = (0, 25, 30, 35, 40, 45, 50)[i - 14]
         msg = edit_csv.add_to_csv(tp, sz, ht)
         sg.popup('重複確認', msg)
 
